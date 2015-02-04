@@ -342,10 +342,10 @@ Initialize(){
         llOwnerSay("Creating Pot Entry...");
     }
     dbInsert(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
-    dbInsert(["User1", "0", "0", "0", "5", "0", "0"]);
-    dbInsert(["Iser2", "0", "0", "0", "12", "0", "0"]);
-    dbInsert(["Iser3", "0", "0", "0", "3", "0", "0"]);
-    dbInsert(["User4", "0", "0", "0", "100", "0", "0"]);
+    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
+    dbInsert(["1b5ab4d9-ee1f-4a95-ad7c-bb861e48bee4", "0", "0", "0", "12", "0", "0"]);
+    dbInsert(["1e5cb86d-3ae7-42f8-bdea-b613f94a60bc", "0", "0", "0", "3", "0", "0"]);
+    dbInsert(["1e5cb86d-3ae7-42f8-bdea-b613f94a60bc", "0", "0", "0", "100", "0", "0"]);
     DBEntries = 5;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);

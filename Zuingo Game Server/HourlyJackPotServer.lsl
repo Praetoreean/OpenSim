@@ -458,6 +458,7 @@ JackPotPayOut(list ActiveUsers){
     for(i=0;i<llGetListLength(ActiveUsers);i++){
         integer AmtToGive = (integer)llFrand(JackPotToGive/2);
         JackPotToGive = JackPotToGive - AmtToGive;
+        llOwnerSay("JackPot Awards "+(string)JackPotToGive+" P$ To "+llList2String(ActiveUsers, i));
     }
 }
     
