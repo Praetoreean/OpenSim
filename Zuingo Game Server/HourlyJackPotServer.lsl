@@ -262,6 +262,7 @@ float dbFn(string fn, string col)
     // Constants
 integer DBComChannel = -260046;
 integer ServerComChannel = -13546788;
+integer ScannerComChannel = -18006;
 integer ServerComHandle;
 string DBName = "HeavenAndHellHourlyJackPot"; // Database for Heaven and Hell Player Info
 string HoverTextString = "Heaven And Hell\n Hourly Jackpot Server"; // Base String Name of Databse Engine
@@ -274,7 +275,7 @@ integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 string ServerType = "JACKPOT";
-integer UploadTimer = 0; // Frequency in Seconds of User Database Upload
+integer UploadTimer = 30; // Frequency in Seconds of User Database Upload
 string TimerMode = "JackPot"; // Hold TimerMode State (either JackPot or Dump)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
@@ -323,6 +324,10 @@ list keynameoncard;
 string nameoncard;
 string storedname;
 
+// Jackpot Server Type Configuration
+integer PotSize;
+integer PotPercentage; // Hold Percentage of JackPot to RollOver
+
     // Menus
 
 
@@ -351,7 +356,7 @@ Initialize(){
     LightToggle(ACTLIGHT, TRUE, "Green");
     llSleep(LightHoldLength);
     LightToggle(ACTLIGHT, FALSE, "Green");
-    RegisterServer("CheckReg");
+    llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
 }
 
 FindKeys(){
@@ -430,6 +435,31 @@ PrintJackPotWinners(string uuid){
             "JackPot: " + llList2String(CurrentLine, 4));
         }   
 }
+
+// Scan for Users Function
+// Ask Scanner for List of Users on Sim
+ScanforUsers(list UsersToCheck){
+    integer i;
+    list UserIDS = [];
+    for(i=0;i<llGetListLength(UsersToCheck);i++){
+        UserIDS = UserIDS + llList2Key(llParseString2List(llList2String(UsersToCheck, i), ["~"], ""), 1);
+        if(DebugMode){
+            llOwnerSay("Key: "+llList2String(UserIDS, i));
+        }
+    }
+    llRegionSay(ScannerComChannel, SecurityKey+"||SCANFOR||"+llDumpList2String(UserIDS, "||"));
+}
+
+// Pay Active Users Their JackPot Share
+JackPotPayOut(list ActiveUsers){
+    float JackPotRollOver = (float)PotSize * (PotPercentage / 100); // Determine JackPot Amount to Roll Over
+    integer JackPotToGive = PotSize - (integer)JackPotRollOver; // Determine JackPot Amount to Give Away
+    integer i;
+    for(i=0;i<llGetListLength(ActiveUsers);i++){
+        integer AmtToGive = (integer)llFrand(JackPotToGive/2);
+        JackPotToGive = JackPotToGive - AmtToGive;
+    }
+}
     
 // Main Program
 default 
@@ -482,7 +512,7 @@ default
             llRegionSayTo(GameEventDBServer, DBComChannel, SendString);
             return;
         }
-        if(chan==ServerComChannel){
+         if(chan==ServerComChannel){
             cmd = llList2String(llParseStringKeepNulls(data, ["||"], []), CMD);
             if(llList2String(llParseString2List(data, "||", ""), 0)==AskForKeys){
                 return;
@@ -490,14 +520,13 @@ default
                 GameServer = llList2String(llParseString2List(data, "||", ""), 2);
                 GameUserDBServer = llList2String(llParseString2List(data, "||", ""), 3);
                 GameEventDBServer = llList2String(llParseString2List(data, "||", ""), 4);
+                PotPercentage = llList2Integer(llParseString2List(data, "||", ""), 16);
                 if(DebugMode){
-                    llOwnerSay("\n\t\tServer UUID To Name Resolutions:\rGame Server: "+llKey2Name(GameServer)+"\rGame Event DB Server: "+llKey2Name(GameEventDBServer)+"\rGame User DB Server: "+llKey2Name(GameUserDBServer));
+                    llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer));
+                    llOwnerSay("Pot Percentage: "+(string)PotPercentage+"%");
                 }
                 // Get Authed Users from NC
                 nrofnamesoncard = llGetNumberOfNotecardLines("whitelist");
-            }
-            if(DebugMode){
-                llOwnerSay("Closing ServerComChannel");
             }
             llListenRemove(ServerComHandle);
         }
@@ -506,96 +535,32 @@ default
             if(DebugMode){
                 llOwnerSay("CMD: "+cmd);
             }
-            if(cmd=="UPDATE"){
-                list InputData = llParseStringKeepNulls(data, ["||"], []);
-                if(DebugMode){ // If Debug Mode is TRUE
-                    integer i; // Integer  for Counting
-                    for(i=0;i<=llGetListLength(InputData)-1;i++){ // Loop Based on List Length (Adjusted for 0 Offset)
-                        llOwnerSay("Processed Input Line: "+(string)i+" "+llList2String(InputData, i)); // Print Each Value in the list
-                    }
-                }
-                if(dbExists(["uuid", "==", llList2String(InputData, UUID)])){ // UUID Already Exists in DB so we Need to Extract Info and Update
-                    if(DebugMode){ // IF Debug Mode output
-                        llOwnerSay("User Found, Extracting Info for Update...");
-                    }
-                    list dbRow = dbGet(dbIndex); // Get Current Entry
-                    string uuid = llList2String(dbRow, 0); // Extract UUID From Entry
-                    string name = llList2String(dbRow, 1); // Extract Name From Entry
-                    integer played = llList2Integer(dbRow, 2); // Extract Number of Times Played
-                    played = played + llList2Integer(InputData, PLAYED); // Adjust Value by Input Amount
-                    integer won = llList2Integer(dbRow, 3); // Extract Amount of P$ Won
-                    won = won + llList2Integer(InputData, WON); // Adjust Value by Input Amount
-                    integer spent = llList2Integer(dbRow, 4); // Extract Amount of P$ Spent
-                    spent = spent + llList2Integer(InputData, SPENT); // Adjust Value by Input Amount
-                    integer wins = llList2Integer(dbRow, 5); // Extract Number of Times Won
-                    wins = wins + llList2Integer(InputData, WINS); // Adjust Value by Input Amount
-                    integer loses = llList2Integer(dbRow, 6); // Extract Number of Times Lost
-                    loses = loses + llList2Integer(InputData, LOSES); // Adjust Value by Input Amount
-                    dbPut([uuid, name, played, won, spent, wins, loses]); // Update Entry
-                    if(DebugMode){ // If Debug Output
-                        llOwnerSay("Update Performed for UUID: "+uuid);
-                        list newRow = dbGet(dbIndex);
-                        llOwnerSay("New Record:\r
-                        UUID: "+llList2String(newRow, 0)+"\r
-                        Username: "+llList2String(newRow, 1)+"\r
-                        Times Played: "+llList2String(newRow, 2)+"\r
-                        P$ WON: "+llList2String(newRow, 3)+"\r
-                        P$ SPENT: "+llList2String(newRow, 4)+"\r
-                        Times Won: "+llList2String(newRow, 5)+"\r
-                        Times Lost: "+llList2String(newRow, 6));
-                    }
-                }else{ // User has not played since last off-world backup. Just Insert New Record
-                    if(DebugMode){
-                        llOwnerSay("Inserting New Record for UUID: "+llList2String(InputData, UUID));
-                    }
-                    dbInsert([
-                        llList2String(InputData, UUID),
-                        osKey2Name(llList2Key(InputData, UUID)),
-                        llList2Integer(InputData, PLAYED),
-                        llList2Integer(InputData, WON),
-                        llList2Integer(InputData, SPENT),
-                        llList2Integer(InputData, WINS),
-                        llList2Integer(InputData, LOSES)
-                    ]);
-                    DBEntries = DBEntries + 1;
-                }
-            }else if(cmd=="UPPOT"){
-                list InputData = llParseStringKeepNulls(data, ["||"], []);
-                if(dbExists(["uuid", "==", "UPPOT"])){ // Check for and Move Pointer to Pot Index (If DB Line Exists)
-                    list dbRow = dbGet(dbIndex); // Get Row
-                    integer NewPot = llList2Integer(dbRow, CMD) + llList2Integer(InputData, 2); // AdjustPot
-                    dbPut(["UPPOT", (integer)NewPot, "0", "0", "0", "0", "0"]); // Place back into DB
-                    if(DebugMode){
-                        llOwnerSay("Pot Updated...");
-                        list NewList = dbGet(dbIndex);
-                        llOwnerSay(llDumpList2String(NewList, "||"));
-                        return;
-                    }
-                }
-            }else if(cmd=="CLRPOT"){
-                if(dbExists(["uuid", "==", "UPPOT"])){ // Check for and Move Pointer to Pot Index
-                    dbPut(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
-                    if(DebugMode){
-                        llOwnerSay("Cleared pot by adjustment.");
-                    }
-                }else{
-                    dbInsert(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
-                    if(DebugMode){
-                        llOwnerSay("Cleared pot by Insert");
-                    }
-                }
-            }else if(cmd=="HRPOT"){ // If Hourly JackPot Server is Calling (Give is List of Sorted Top Spenders and JackPot Total)
-                dbIndex = 1; // Set Database Inquiry Start Point
-                list UnSortedOutPut = []; // Prepare Output List
-                for(dbIndex=1;dbIndex<=DBEntries;dbIndex++){ // Loop for all DB Entires
-                    list CurrentLine = dbGet(dbIndex); // Extract Current DB Entry into List
-                    UnSortedOutPut = UnSortedOutPut + [llList2String(CurrentLine, 2) + "-" + llList2String(CurrentLine, 0)]; // Extract Spent and UUID and Place into List
-                }
-                list SortedOutPut = llListSort(UnSortedOutPut, 1, FALSE); // Sort the UnSortedOutPut and place into SortedOutPut
+            //Test cmd
+            if(cmd=="TOPLIST"){
+                list InList = llParseStringKeepNulls(data, ["||"], []);
+                integer i;
                 if(DebugMode){
-                    llOwnerSay("\n\t\tList of Top Spenders:\r"+llDumpList2String(SortedOutPut, "|"));
+                    for(i=0;i<llGetListLength(InList);i++){
+                        llOwnerSay("Entry "+i+" :"+llList2String(InList, i)+"\r");
+                    }
                 }
+                PotSize = llList2Integer(llParseString2List(llList2String(InList, llGetListLength(InList)-1), ["~"], ""), 0);
+                if(DebugMode){
+                    llOwnerSay("Pot Size: "+(string)PotSize);
+                }
+                list TopList = llListSort(llList2List(InList, 2, -1), -1, TRUE);
+                if(DebugMode){
+                    for(i=0;i<llGetListLength(TopList);i++){
+                        llOwnerSay("Sorted Entry "+i+" :"+llList2String(TopList, i)+"\r");
+                    }
+                }
+                // Ask Scanner Prim for List of Users that are Active in Range
+                ScanforUsers(TopList);
             }
+        }
+        if(chan==ScannerComChannel){ // Response From Scanner
+            list ActiveUserList = llList2List(llParseString2List(data, ["||"], []), 2, -1);
+            JackPotPayOut(ActiveUserList); // Pay Active Users, Update DB E.T.C
         }
         llSleep(LightHoldLength);
         LightToggle(ACTLIGHT, FALSE, "Green");
@@ -702,7 +667,8 @@ default
         LightToggle(ACTLIGHT, TRUE, "Green");
         llSetTimerEvent(UploadTimer);
         if(TimerMode=="JackPot"){
-            //llOwnerSay("JackPot");
+            llOwnerSay("Timer Fired!");
+            llRegionSayTo(GameUserDBServer, DBComChannel, SecurityKey+"||"+"HRPOT");
         }else if(TimerMode=="Dump"){
             string DumpString = GetUserData();
             string EncodedDumpString = llStringToBase64(DumpString);
@@ -724,6 +690,12 @@ default
             HTTPFLAG = "UserDump";
             HTTPRequestHandle = llHTTPRequest(URL, SendParams, PostBody); // Send Request to Server to Check and/or Register this Server
             LightToggle(ACTLIGHT, FALSE, "Green");
+        }
+    }
+    
+    run_time_permissions(integer perm){
+        if(PERMISSION_DEBIT & perm){
+            RegisterServer("CheckReg");
         }
     }
 }

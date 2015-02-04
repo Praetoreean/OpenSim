@@ -263,7 +263,7 @@ float dbFn(string fn, string col)
 integer DBComChannel = -260046;
 integer ServerComChannel = -13546788;
 integer ServerComHandle;
-string DBName = "HeavenAndHellEvents"; // Database for Heaven and Hell Player Info
+string DBName = "HeavenAndHellUserDatabase"; // Database for Heaven and Hell Player Info
 string HoverTextString = "Heaven And Hell\n User Database"; // Base String Name of Databse Engine
 string EMPTY = "";
 key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
@@ -341,7 +341,12 @@ Initialize(){
         llOwnerSay("Database "+DBName+" Created...");
         llOwnerSay("Creating Pot Entry...");
     }
-    dbInsert(["UPPOT", "0", "0", "0", "0", "0", "0"]);
+    dbInsert(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
+    dbInsert(["User1", "0", "0", "0", "5", "0", "0"]);
+    dbInsert(["Iser2", "0", "0", "0", "12", "0", "0"]);
+    dbInsert(["Iser3", "0", "0", "0", "3", "0", "0"]);
+    dbInsert(["User4", "0", "0", "0", "100", "0", "0"]);
+    DBEntries = 5;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
     LightToggle(PWRLIGHT, TRUE, "Red");
@@ -580,12 +585,18 @@ default
                 list UnSortedOutPut = []; // Prepare Output List
                 for(dbIndex=1;dbIndex<=DBEntries;dbIndex++){ // Loop for all DB Entires
                     list CurrentLine = dbGet(dbIndex); // Extract Current DB Entry into List
-                    UnSortedOutPut = UnSortedOutPut + [llList2String(CurrentLine, 2) + "-" + llList2String(CurrentLine, 0)]; // Extract Spent and UUID and Place into List
+                    if(llList2String(CurrentLine, 0)!="UPPOT"){
+                        UnSortedOutPut = UnSortedOutPut + [llList2String(CurrentLine, 4) + "~" + llList2String(CurrentLine, 0)]; // Extract Spent and UUID and Place into List
+                    }else{
+                        UnSortedOutPut = UnSortedOutPut + [llList2String(CurrentLine, 1) + "~" + llList2String(CurrentLine, 0)]; // Extract Spent and UUID and Place into List
+                    }
                 }
                 list SortedOutPut = llListSort(UnSortedOutPut, 1, FALSE); // Sort the UnSortedOutPut and place into SortedOutPut
                 if(DebugMode){
-                    llOwnerSay("\n\t\tList of Top Spenders:\r"+llDumpList2String(SortedOutPut, "|"));
+                    llOwnerSay("\n\t\tList of Top Spenders:\r"+llDumpList2String(SortedOutPut, "||"));
                 }
+                string FormattedOutPut = llDumpList2String(SortedOutPut, "||");
+                llRegionSayTo(id, DBComChannel, SecurityKey+"||TOPLIST||"+FormattedOutPut);
             }
         }
         llSleep(LightHoldLength);
