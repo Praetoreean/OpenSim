@@ -20,8 +20,10 @@
                 integer CMD = 1;
     // Variables
         list FoundUsers = [];
+        string CallingServer = "";
     // Switches
         integer DebugMode = TRUE;
+        integer Finished = FALSE;
     // Handles
         integer ComHandle;
 // Custom Functions
@@ -45,7 +47,9 @@ integer ScanForUser(string userid){
     if(DebugMode){
         llOwnerSay("Scanner Received UserID String: "+userid);
     }
-    llSensor("", userid, AGENT, 64.0, PI);
+    if(userid!=""){
+        llSensor("", (key)userid, AGENT, 64.0, PI);
+    }
     return FALSE;
 }
 
@@ -63,18 +67,29 @@ default{
     
     sensor (integer num_detected)
     {
-        FoundUsers = FoundUsers + (string)llDetectedKey(0);
-        if(DebugMode){
-            llOwnerSay("Found User: "+llDetectedKey(0));
+        //if(llListFindList(FoundUsers, [llDetectedKey(0)])==-1){
+            FoundUsers = FoundUsers + (string)llDetectedKey(0);
+            if(DebugMode){
+                llOwnerSay("Found User: "+llDetectedKey(0));
+            }
+        //}
+        if(Finished==TRUE){
+            string ResponseString = SecurityKey+"||ACTIVEUSERS||"+llDumpList2String(FoundUsers, "||");
+            if(DebugMode){
+                llOwnerSay("Calling Server ID: "+CallingServer+"\rChannel: "+(string)ComChannel+"\rResponse Sent!\r"+ResponseString);
+            }
+            llRegionSayTo(CallingServer, ComChannel, ResponseString);
+            llResetScript();
         }
     }
  
     no_sensor()
     {
-        
+        llOwnerSay("No Sensor!");
     }
     
     listen(integer chan, string cmd, key id, string data){
+        FoundUsers = [];
         if(DebugMode){
             llOwnerSay("Listen Event Fired:\nCommand: "+cmd+"\n"+"Data: "+data);
         }
@@ -95,14 +110,18 @@ default{
             if(cmd=="SCANFOR"){
                 list UserIDS = llList2List(llParseStringKeepNulls(data, ["||"], []), 2, -1);
                 integer i;
+                CallingServer = id;
+                if(DebugMode){
+                    llOwnerSay("UserIDS: "+llDumpList2String(UserIDS, "||"));
+                }
                 for(i=0;i<llGetListLength(UserIDS);i++){
+                    if(i==llGetListLength(UserIDS)-1){
+                        //Finished = TRUE;
+                        llOwnerSay("Finished!");
+                    }
                     if(llList2String(UserIDS, i)!="UPPOT"){
                         ScanForUser(llList2String(UserIDS, i));
                     }
-                }
-                llRegionSayTo(id, ComChannel, llDumpList2String(FoundUsers, "||"));
-                if(DebugMode){
-                    llOwnerSay("Response Sent!\rTEST"+llDumpList2String(FoundUsers, "||"));
                 }
             }
         }

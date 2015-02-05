@@ -264,6 +264,7 @@ integer DBComChannel = -260046;
 integer ServerComChannel = -13546788;
 integer ScannerComChannel = -18006;
 integer ServerComHandle;
+integer ScannerComHandle;
 string DBName = "HeavenAndHellHourlyJackPot"; // Database for Heaven and Hell Player Info
 string HoverTextString = "Heaven And Hell\n Hourly Jackpot Server"; // Base String Name of Databse Engine
 string EMPTY = "";
@@ -341,15 +342,17 @@ Initialize(){
     }
     llListenRemove(DBComHandle);
     llListenRemove(ServerComHandle);
+    llListenRemove(ScannerComHandle);
     llSleep(0.1);
     DBComHandle = llListen(DBComChannel, EMPTY, EMPTY, EMPTY);
     ServerComHandle = llListen(ServerComChannel, EMPTY, EMPTY, EMPTY);
-    string CreatedDB = dbCreate(DBName, ["uuid", "name", "spent", "won", "jackpot"]);
+    ScannerComHandle = llListen(ScannerComChannel, EMPTY, EMPTY, EMPTY);
+    string CreatedDB = dbCreate(DBName, ["uuid", "name", "jackpot"]);
     if(CreatedDB==DBName && DebugMode){
         llOwnerSay("Database "+DBName+" Created...");
         llOwnerSay("Creating Pot Entry...");
     }
-    //dbInsert(["TEST1", "TEST2", "TEST3", "TEST4", "TEST5"]);
+    //dbInsert(["uuid", "name", "spent", "won", "jackpot"]);
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
     LightToggle(PWRLIGHT, TRUE, "Red");
@@ -430,9 +433,7 @@ PrintJackPotWinners(string uuid){
             llRegionSayTo(uuid, 0, "\nJackPot Winners:\n" + 
             "UUID: " + llList2String(CurrentLine, 0) + "\n" +
             "Name: " + llList2String(CurrentLine, 1) + "\n" +
-            "Spent: " + llList2String(CurrentLine, 2) + "\n" +
-            "Won: " + llList2String(CurrentLine, 3) + "\n" +
-            "JackPot: " + llList2String(CurrentLine, 4));
+            "JackPot: " + llList2String(CurrentLine, 2));
         }   
 }
 
@@ -444,21 +445,40 @@ ScanforUsers(list UsersToCheck){
     for(i=0;i<llGetListLength(UsersToCheck);i++){
         UserIDS = UserIDS + llList2Key(llParseString2List(llList2String(UsersToCheck, i), ["~"], ""), 1);
         if(DebugMode){
-            llOwnerSay("Key: "+llList2String(UserIDS, i));
+            llOwnerSay("Key to scan for: "+llList2String(UserIDS, i));
         }
     }
-    llRegionSay(ScannerComChannel, SecurityKey+"||SCANFOR||"+llDumpList2String(UserIDS, "||"));
+    string ComMessage = SecurityKey+"||SCANFOR||"+llDumpList2String(UserIDS, "||");
+    if(DebugMode){
+        llOwnerSay("JP Server-Avatar Scanner String: "+ComMessage);
+    }
+    llRegionSay(ScannerComChannel, ComMessage);
 }
 
 // Pay Active Users Their JackPot Share
 JackPotPayOut(list ActiveUsers){
-    float JackPotRollOver = (float)PotSize * (PotPercentage / 100); // Determine JackPot Amount to Roll Over
+    float JackPotRollOver = (float)PotSize * (float)((float)PotPercentage / 100.0); // Determine JackPot Amount to Roll Over
+    if(DebugMode){
+        llOwnerSay("JPRO: "+(string)JackPotRollOver);
+    }
     integer JackPotToGive = PotSize - (integer)JackPotRollOver; // Determine JackPot Amount to Give Away
     integer i;
-    for(i=0;i<llGetListLength(ActiveUsers);i++){
+    integer NumActiveUsers = llGetListLength(ActiveUsers);
+    if(NumActiveUsers>5){
+        NumActiveUsers = 5;
+    }
+    for(i=0;i<NumActiveUsers;i++){
         integer AmtToGive = (integer)llFrand(JackPotToGive/2);
-        JackPotToGive = JackPotToGive - AmtToGive;
-        llOwnerSay("JackPot Awards "+(string)JackPotToGive+" P$ To "+llList2String(ActiveUsers, i));
+        integer Remain = JackPotToGive - AmtToGive;
+        JackPotToGive = Remain;
+        if(DebugMode){
+            llOwnerSay("AmtToGive: "+(string)AmtToGive+"\rSize of Remaining JackPot: "+JackPotToGive);
+        }
+        if(AmtToGive>0){
+            llGiveMoney(llList2String(ActiveUsers, i), AmtToGive);
+            list DBInsert = [llList2String(ActiveUsers, i), osKey2Name(llList2String(ActiveUsers, i)), (string)AmtToGive ];
+            dbInsert(DBInsert);
+        }
     }
 }
     
@@ -545,7 +565,13 @@ default
                         llOwnerSay("Entry "+i+" :"+llList2String(InList, i)+"\r");
                     }
                 }
-                PotSize = llList2Integer(llParseString2List(llList2String(InList, llGetListLength(InList)-1), ["~"], ""), 0);
+                // Determine Current Pot Size
+                for(i=0;i<llGetListLength(InList);i++){
+                    list CurList = [] + llParseString2List(llList2String(InList, i), ["~"], []);
+                    if(llList2String(CurList, 1)=="UPPOT"){
+                        PotSize = llList2Integer(CurList, 0);
+                    }
+                }
                 if(DebugMode){
                     llOwnerSay("Pot Size: "+(string)PotSize);
                 }
@@ -560,6 +586,7 @@ default
             }
         }
         if(chan==ScannerComChannel){ // Response From Scanner
+            llOwnerSay("Data String: "+data);
             list ActiveUserList = llList2List(llParseString2List(data, ["||"], []), 2, -1);
             JackPotPayOut(ActiveUserList); // Pay Active Users, Update DB E.T.C
         }
@@ -676,7 +703,7 @@ default
             string MessageBody = "data="+EncodedDumpString;
             integer MessageBodyLength = llStringLength(MessageBody);
             if(MessageBodyLength>15000){
-                // Send to Event Server that we missed Data on Upload due to Body OverSize.
+                // Send to Event Server that we missed Data on Upload due to Body OverSize. 
                 // Adjust Timer to make next Call Quicker
                 UploadTimer = UploadTimer - 60; // Reduce Cycle Timer by 1 Minute
                 llSetTimerEvent(UploadTimer);

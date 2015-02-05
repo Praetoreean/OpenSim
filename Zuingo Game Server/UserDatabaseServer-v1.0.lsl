@@ -341,12 +341,11 @@ Initialize(){
         llOwnerSay("Database "+DBName+" Created...");
         llOwnerSay("Creating Pot Entry...");
     }
-    dbInsert(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
+    dbInsert(["UPPOT", "100", "0", "0", "0", "0", "0"]);
     dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
-    dbInsert(["1b5ab4d9-ee1f-4a95-ad7c-bb861e48bee4", "0", "0", "0", "12", "0", "0"]);
-    dbInsert(["1e5cb86d-3ae7-42f8-bdea-b613f94a60bc", "0", "0", "0", "3", "0", "0"]);
-    dbInsert(["1e5cb86d-3ae7-42f8-bdea-b613f94a60bc", "0", "0", "0", "100", "0", "0"]);
-    DBEntries = 5;
+    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "12", "0", "0"]);
+    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "32", "0", "0"]);
+    DBEntries = 4;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
     LightToggle(PWRLIGHT, TRUE, "Red");
@@ -580,7 +579,7 @@ default
                         llOwnerSay("Cleared pot by Insert");
                     }
                 }
-            }else if(cmd=="HRPOT"){ // If Hourly JackPot Server is Calling (Give is List of Sorted Top Spenders and JackPot Total)
+            }else if(cmd=="HRPOT"){ // If Hourly JackPot Server is Calling (Give i s List of Sorted Top Spenders and JackPot Total)
                 dbIndex = 1; // Set Database Inquiry Start Point
                 list UnSortedOutPut = []; // Prepare Output List
                 for(dbIndex=1;dbIndex<=DBEntries;dbIndex++){ // Loop for all DB Entires
