@@ -304,7 +304,7 @@ integer LOSES = 8;
 
     // Switches
 integer HoverText = TRUE; // Should we show hoverText
-integer DebugMode = TRUE; // Should we say De bug Messages to Owner?
+integer DebugMode = FALSE; // Should we say De bug Messages to Owner?
 
     // Variables
 integer DBComHandle; // Database Communication Handle
@@ -342,10 +342,10 @@ Initialize(){
         llOwnerSay("Creating Pot Entry...");
     }
     dbInsert(["UPPOT", "100", "0", "0", "0", "0", "0"]);
-    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
+    /*dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
     dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "12", "0", "0"]);
-    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "32", "0", "0"]);
-    DBEntries = 4;
+    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "32", "0", "0"]);*/
+    DBEntries = 1;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
     LightToggle(PWRLIGHT, TRUE, "Red");

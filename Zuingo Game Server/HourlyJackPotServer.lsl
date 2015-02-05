@@ -276,7 +276,7 @@ integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 string ServerType = "JACKPOT";
-integer UploadTimer = 30; // Frequency in Seconds of User Database Upload
+integer UploadTimer = 3600; // Frequency in Seconds of User Database Upload
 string TimerMode = "JackPot"; // Hold TimerMode State (either JackPot or Dump)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
@@ -309,7 +309,7 @@ integer LOSES = 8;
 
     // Switches
 integer HoverText = TRUE; // Should we show hoverText
-integer DebugMode = TRUE; // Should we say De bug Messages to Owner?
+integer DebugMode = FALSE; // Should we say De bug Messages to Owner?
 
     // Variables
 integer DBComHandle; // Database Communication Handle
@@ -328,6 +328,8 @@ string storedname;
 // Jackpot Server Type Configuration
 integer PotSize;
 integer PotPercentage; // Hold Percentage of JackPot to RollOver
+integer JackPotCounter; // Hold Incrementally increasing JackPot Count (Increased every time a JackPot Routine is run)
+integer MaxJackPots = 6; // Max number of JackPots before Off-World DB Dump and DB Truncate  (HrsBeforeReset = MaxJackPots * UploadTimer)
 
     // Menus
 
@@ -413,9 +415,9 @@ LightToggle(integer LinkID, integer ISON, string Color){
 }
 
 string GetUserData(){
-    dbIndex = 2;
+    dbIndex = 1;
     string ReturnString = "";
-    for(dbIndex=2;dbIndex<=DBEntries;dbIndex++){
+    for(dbIndex=1;dbIndex<=DBEntries;dbIndex++){
         list CurrentLine = dbGet(dbIndex);
         
         if(llList2String(CurrentLine, 0)==""){ return ReturnString; }
@@ -677,14 +679,9 @@ default
                 if(DebugMode){
                     llOwnerSay("Truncating Database...");
                 }
-                dbIndex = 1;
-                list JackPot = dbGet(dbIndex);
-                if(DebugMode){
-                    llOwnerSay("JackPot Dump: "+llDumpList2String(JackPot, "||"));
-                }
                 dbTruncate(DBName);
-                dbInsert(JackPot);
-                DBEntries = 1;
+                DBEntries = 0;
+                TimerMode = "JackPot";
                 llSetTimerEvent(UploadTimer);
             }
         }
@@ -695,10 +692,15 @@ default
         LightToggle(ACTLIGHT, TRUE, "Green");
         llSetTimerEvent(UploadTimer);
         if(TimerMode=="JackPot"){
-            llOwnerSay("Timer Fired!");
+            JackPotCounter++;
+            if(JackPotCounter==1){
+                TimerMode = "Dump";
+                llSetTimerEvent(30.0); // Wait 30 Seconds until calling Timer Again with Dump Flag Set. This gives time for the JackPot Round to Complete.
+            }
             llRegionSayTo(GameUserDBServer, DBComChannel, SecurityKey+"||"+"HRPOT");
         }else if(TimerMode=="Dump"){
             string DumpString = GetUserData();
+            llOwnerSay("Dump String: "+DumpString);
             string EncodedDumpString = llStringToBase64(DumpString);
             string MessageBody = "data="+EncodedDumpString;
             integer MessageBodyLength = llStringLength(MessageBody);
@@ -708,7 +710,7 @@ default
                 UploadTimer = UploadTimer - 60; // Reduce Cycle Timer by 1 Minute
                 llSetTimerEvent(UploadTimer);
             }
-            string CmdString = "?"+llStringToBase64("cmd")+"="+llStringToBase64("UserDump")+"&"+llStringToBase64("Key")+"="+llStringToBase64(SecurityKey);
+            string CmdString = "?"+llStringToBase64("cmd")+"="+llStringToBase64("JackPotDump")+"&"+llStringToBase64("Key")+"="+llStringToBase64(SecurityKey);
             if(DebugMode){
                 llOwnerSay("Send String: "+CmdString);
             }

@@ -544,8 +544,8 @@ default
             if(InputCMD=="ALRDYREGOK"){ // Server Already Registered
                 if(DebugMode){
                     llOwnerSay("Server Already Registered!");
-                    llOwnerSay(DBName+" Server Online!");
                 }
+                llOwnerSay(DBName+" Server Online!");
             }else if(InputCMD=="REGOK"){ // Server Successfully Registered
                 if(DebugMode){
                     llOwnerSay("Server Successfully Registered!");

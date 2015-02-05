@@ -4,6 +4,7 @@
 *   This Script Listens for Calls for any JackPot Servers, who provide a list of Avatar Ids to check for
 *   and return a list on the same channel, but speaking only to the primitive from which the call came.
 *
+*   Call Format is  SecurityKey||CMD||LISTITEM||LISTITEM
 */
 
 // Configuration
@@ -21,9 +22,10 @@
     // Variables
         list FoundUsers = [];
         string CallingServer = "";
+        integer GListLength;
+        integer SFired;
     // Switches
-        integer DebugMode = TRUE;
-        integer Finished = FALSE;
+        integer DebugMode = FALSE;
     // Handles
         integer ComHandle;
 // Custom Functions
@@ -67,13 +69,14 @@ default{
     
     sensor (integer num_detected)
     {
+        SFired++;
         //if(llListFindList(FoundUsers, [llDetectedKey(0)])==-1){
             FoundUsers = FoundUsers + (string)llDetectedKey(0);
             if(DebugMode){
                 llOwnerSay("Found User: "+llDetectedKey(0));
             }
         //}
-        if(Finished==TRUE){
+        if(SFired==GListLength-1){
             string ResponseString = SecurityKey+"||ACTIVEUSERS||"+llDumpList2String(FoundUsers, "||");
             if(DebugMode){
                 llOwnerSay("Calling Server ID: "+CallingServer+"\rChannel: "+(string)ComChannel+"\rResponse Sent!\r"+ResponseString);
@@ -85,7 +88,7 @@ default{
  
     no_sensor()
     {
-        llOwnerSay("No Sensor!");
+        SFired++;
     }
     
     listen(integer chan, string cmd, key id, string data){
@@ -115,11 +118,8 @@ default{
                     llOwnerSay("UserIDS: "+llDumpList2String(UserIDS, "||"));
                 }
                 for(i=0;i<llGetListLength(UserIDS);i++){
-                    if(i==llGetListLength(UserIDS)-1){
-                        //Finished = TRUE;
-                        llOwnerSay("Finished!");
-                    }
                     if(llList2String(UserIDS, i)!="UPPOT"){
+                        GListLength = llGetListLength(UserIDS);
                         ScanForUser(llList2String(UserIDS, i));
                     }
                 }
