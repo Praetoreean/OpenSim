@@ -1,4 +1,4 @@
-float requestTime = 30.0;
+float requestTime = 10.0;
 
 list values;
 list names;
@@ -21,7 +21,7 @@ integer ComHandle;
 string EMPTY = "";
 string RequestFlag = "";
 string NextPot = "";
-integer DebugMode = FALSE;
+integer DebugMode = TRUE;
 integer Playing = FALSE;
 integer bGame = TRUE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
@@ -33,7 +33,7 @@ default {
         llListenRemove(ComHandle);
         llSleep(0.1);
         ComHandle = llListen(ServerComChannel, EMPTY, EMPTY, EMPTY);
-        requestTime = 300.0 - llFrand(200.00);
+        //requestTime = 300.0 - llFrand(200.00); // How often does the Server Relay Call GS for Updates
         if(DebugMode){
             llOwnerSay("Request Time: "+(string)requestTime);
         }
@@ -168,7 +168,11 @@ default {
                     integer MoneyPaid = (integer)llGetSubString(value1, 2, -1);
                     integer MoneyWon = llRound((float)MoneyPaid * multiplier);
                     llSay(0, "You Won!\nYou Paid: "+value1+"\nGame Multiplier: "+(string)multiplier+"\nYou Won: P$"+MoneyWon+"\nYou Have gained an entry in the JackPot\nThe Jackpot will payout in approx "+NextPot+" minutes");
-                    llGiveMoney(playerKey, MoneyWon);
+                    if(DiagMode=="FALSE" || DiagMode==""){ // If we are not in Diagnostic Mode, Allow PayOut
+                        llGiveMoney(playerKey, MoneyWon);
+                    }else{ // If We are in Diag Mode, Print Message to Player
+                        llRegionSayTo(playerKey, 0, "Diag Mode Active. Nothing Paid Out!");
+                    }
                     // Log in Event Server and Update Their Entry in User Database
                     list SendList = [] + SecurityKey + ["UPDATE"] + [playerKey, "", "1", MoneyWon, MoneyPaid, "1", "0" ];
                     string SendString = llDumpList2String(SendList, "||");

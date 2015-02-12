@@ -78,7 +78,7 @@ integer GameDBComChannel = -260045; // Game Database Server Communication Channe
 integer EventDBServerComChannel = -260046; // Game Event Database Server Communication Channel
 integer ServerComHandle;
 list RoundLengthList = [];
-integer DebugMode = FALSE;
+integer DebugMode = TRUE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 list AdminMenuUsers = [];
 string DiagMode;
@@ -294,7 +294,13 @@ default {
         if(DebugMode){
             llOwnerSay("Booted Main Script");
         }
-        llRegionSay(ServerComChannel, AskForKeys);
+        llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
+    }
+    
+    run_time_permissions(integer perm){
+        if(PERMISSION_DEBIT & perm){
+            llRegionSay(ServerComChannel, AskForKeys);
+        }
     }
     
     listen(integer chan, string name, key id, string msg){
@@ -336,6 +342,9 @@ default {
                 PotPercentage>0
             ){
                 llOwnerSay("Game Configured!");
+                if(DiagMode=="TRUE"){
+                    llOwnerSay("Diagnostic Mode Active!");
+                }
             }else{
                 llOwnerSay("Game Configureation ERROR!");
             }
@@ -501,6 +510,12 @@ state Ready {
     
     money(key id, integer amount) { // Money Paid Into Game
         if (!playing) { // We are not playing the game
+            if(DiagMode=="TRUE"){ // If we are in Diagnostic Mode (Give Any Paid Money Back Right Away)
+                llRegionSayTo(id, 0, "Diagnostic Mode Enabled! Returning your money, You can NOT win any money either!");
+                llSleep(0.5);
+                llSay(0, "Returning...");
+                llGiveMoney(id, amount);
+            }
             player = id;
             llSetPayPrice(PAY_HIDE, [PAY_HIDE, PAY_HIDE, PAY_HIDE, PAY_HIDE]);
             llSetClickAction(CLICK_ACTION_TOUCH);

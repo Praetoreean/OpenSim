@@ -276,7 +276,7 @@ integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 string ServerType = "JACKPOT";
-integer UploadTimer = 600; // Frequency in Seconds of User Database Upload
+integer UploadTimer = 45; // Frequency in Seconds of User Database Upload
 string TimerMode = "JackPot"; // Hold TimerMode State (either JackPot or Dump)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
@@ -492,7 +492,13 @@ JackPotPayOut(list ActiveUsers){
             llOwnerSay("AmtToGive: "+(string)AmtToGive+"\rSize of Remaining JackPot: "+JackPotToGive);
         }
         if(AmtToGive>0){
-            llGiveMoney(llList2String(ActiveUsers, i), AmtToGive);
+            if(DiagMode=="FALSE" || DiagMode==""){ // If we are not in Diagnostic Mode
+                llGiveMoney(llList2String(ActiveUsers, i), AmtToGive); // Give Money to User (Award JackPot)
+            }else{ // If we are in Diagnostic Mode, Notify the User, If in Debug Mode!
+                if(DebugMode){
+                    llRegionSayTo(llList2String(ActiveUsers, i), 0, "Diagnostic Mode Enabled! No JackPot will be Awarded!");
+                }
+            }
             list DBInsert = [llList2String(ActiveUsers, i), osKey2Name(llList2String(ActiveUsers, i)), (string)AmtToGive ];
             dbInsert(DBInsert);
         }
