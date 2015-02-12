@@ -273,6 +273,7 @@ integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 integer UploadTimer = 3720; // Frequency in Seconds of User Database Upload
+integer DBEMPTY = 1;
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
 string URLBase = "http://api.orbitsystems.ca/api.php";
@@ -342,9 +343,9 @@ Initialize(){
         llOwnerSay("Creating Pot Entry...");
     }
     dbInsert(["UPPOT", "100", "0", "0", "0", "0", "0"]);
-    /*dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
-    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "12", "0", "0"]);
-    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "32", "0", "0"]);*/
+//    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "5", "0", "0"]);
+//    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "12", "0", "0"]);
+//    dbInsert(["3d7b1a28-f547-4d10-8924-7a2b771739f4", "0", "0", "0", "32", "0", "0"]); 
     DBEntries = 1;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
@@ -596,6 +597,11 @@ default
                 }
                 string FormattedOutPut = llDumpList2String(SortedOutPut, "||");
                 llRegionSayTo(id, DBComChannel, SecurityKey+"||TOPLIST||"+FormattedOutPut);
+                dbIndex = DBEMPTY;
+                list JackPot = dbGet(dbIndex);
+                dbTruncate(DBName);
+                dbInsert(JackPot);
+                DBEntries = DBEMPTY;
             }
         }
         llSleep(LightHoldLength);

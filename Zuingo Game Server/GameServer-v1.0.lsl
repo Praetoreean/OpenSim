@@ -61,6 +61,7 @@ string pointsAll;
 string pointsCash;
 string pointsPlus;
 string PotPercent;
+string DiagMode;
     
     // Functions
 
@@ -260,6 +261,11 @@ LoadConfig(string data){
                     if(GameName!="" && DebugMode){
                         llOwnerSay("Game Name: "+GameName);
                     }
+                }else if(name=="diagmode"){
+                    DiagMode = value;
+                    if(DiagMode!="" && DebugMode){
+                        llOwnerSay("Diagnostic Mode: "+DiagMode);
+                    }   
                 }
                 LightToggle(CFGLIGHT, FALSE, "Orange");
         }else{ //  line does not contain equal sign
@@ -357,7 +363,7 @@ default{
             LightToggle(OUTLIGHT, FALSE, "Green");
             return; 
         }else if(data==SecureRequest){
-            list GameConfig = [] + lMummy + [roundTime] + [pointsSingleField] + [pointsLine] + [pointsPattern] + [pointsAll] + [pointsCash] + [pointsPlus] + [PotPercent];
+            list GameConfig = [] + lMummy + [roundTime] + [pointsSingleField] + [pointsLine] + [pointsPattern] + [pointsAll] + [pointsCash] + [pointsPlus] + [PotPercent] + [DiagMode];
             list SendList = [SecurityKey] + [SecureRequest] + KEYS + GameConfig + AuthedUsers;
             string SendString = llDumpList2String(SendList, "||");
             if(DebugMode){

@@ -1,7 +1,7 @@
 // Avatar Scanner Engine v1.0
 // Created by Tech Guy (Zachary Williams) 2015
 /* 
-*   This Script Listens for Calls for any JackPot Servers, who provide a list of Avatar Ids to check for
+*   This Script Listens for Calls from any JackPot Servers, who provide a list of Avatar Ids to check for
 *   and return a list on the same channel, but speaking only to the primitive from which the call came.
 *
 *   Call Format is  SecurityKey||CMD||LISTITEM||LISTITEM
@@ -121,6 +121,8 @@ default{
                     if(llList2String(UserIDS, i)!="UPPOT"){
                         GListLength = llGetListLength(UserIDS);
                         ScanForUser(llList2String(UserIDS, i));
+                    }else{ // If Input is equal to UPPOT
+                        
                     }
                 }
             }

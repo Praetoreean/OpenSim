@@ -81,6 +81,7 @@ list RoundLengthList = [];
 integer DebugMode = FALSE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 list AdminMenuUsers = [];
+string DiagMode;
 
 list ssCreateMenu(string menu) {
     if (menu == "main")         return [cmdConfig];
@@ -322,6 +323,7 @@ default {
             pointsCash          = llList2Integer(NewKeys, 14);
             pointsPharao        = llList2Integer(NewKeys, 15);
             PotPercentage       = llList2Float(NewKeys, 16) / 100;
+            DiagMode            = llList2String(NewKeys, 17);
             if(
                 llGetListLength(lMummy)>0 &&
                 roundTime>0 &&

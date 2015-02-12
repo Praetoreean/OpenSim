@@ -15,7 +15,7 @@ key GameDBServer = "b9dbc6a4-2ac3-4313-9a7f-7bd1e11edf78"; // UUID of Game Datab
 key GameEventDBServer = "dbfa0843-7f7f-4ced-83f6-33223ae57639"; // UUID of Game Event Logger Database Server
 key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4"; // Security Key for Secure Communication. Currently my UUID
 integer ServerComChannel = -13546788; // Game Server Communication Channel
-integer ServerDBComChannel = -260045; // Game Database Server Communication Channel
+integer ServerDBComChannel = -260046; // Game Database Server Communication Channel
 integer EventDBServerComChannel = -260046; // Game Event Database Server Communication Channel
 integer ComHandle;
 string EMPTY = "";
@@ -25,6 +25,7 @@ integer DebugMode = FALSE;
 integer Playing = FALSE;
 integer bGame = TRUE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
+string DiagMode;
 
 default {
     state_entry() {
@@ -85,6 +86,7 @@ default {
             GameServer = llList2Key(NewKeys, 2);
             GameDBServer = llList2Key(NewKeys, 3);
             GameEventDBServer = llList2Key(NewKeys, 4);
+            DiagMode = llList2String(NewKeys, 17);
             if(DebugMode){
                 llOwnerSay("Server Key Update Complete!");
             }

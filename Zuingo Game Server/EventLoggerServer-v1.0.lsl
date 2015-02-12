@@ -333,7 +333,7 @@ Initialize(){
     LightToggle(ACTLIGHT, FALSE, "Green");
     llSetTimerEvent(UploadTimer);
     RegisterServer("CheckReg");
-//    llOwnerSay(DBName+" Server Online!");
+//  llOwnerSay(DBName+" Server Online!");
 }
 
 // Check key if any incoming request and validate against Security Key
@@ -452,8 +452,8 @@ default
         if(DebugMode){
             llOwnerSay("Listen Event Fired:\nCommand: "+cmd+"\n"+"Data: "+data);
         }
-        if(SecurityCheck(llList2Key(InputData, 0))==FALSE){ // If Device did not Send Security Key
-            dbInsert(["THISOBJ", "", llGetObjectName(), "Invalid Security Key!", "External Caller did not provide valid Security Key.", data]);
+        if(SecurityCheck(llList2Key(InputData, 0))==FALSE && data != ""){ // If Device did not Send Security Key
+            dbInsert(["THISOBJ", "", llGetObjectName(), "Invalid Security Key!", "External Caller '"+cmd+"' did not provide valid Security Key.", data]);
             if(DebugMode){
                 llOwnerSay("Security Error writing to User Database!");
             }

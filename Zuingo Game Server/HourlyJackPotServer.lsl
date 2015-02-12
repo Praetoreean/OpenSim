@@ -276,7 +276,7 @@ integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 string ServerType = "JACKPOT";
-integer UploadTimer = 3600; // Frequency in Seconds of User Database Upload
+integer UploadTimer = 600; // Frequency in Seconds of User Database Upload
 string TimerMode = "JackPot"; // Hold TimerMode State (either JackPot or Dump)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
@@ -313,9 +313,11 @@ integer DebugMode = FALSE; // Should we say De bug Messages to Owner?
 
     // Variables
 integer DBComHandle; // Database Communication Handle
-integer DBEntries = 1; // NUmber of Database Entries
+integer DBEntries; // NUmber of Database Entries
+integer DBEMPTY = 1;
 integer TotalTouched = 0;
 string HTTPFLAG = ""; // Hold Flag to know what last HTTP Resquest was for
+string DiagMode; // Holds String Flag for Diagnostics Mode (ie Return all payments upon being made, and do not payout winers, ONLY LOG DATA!)
 
 // NoteCard Reader
 key nrofnamesoncard;
@@ -355,6 +357,7 @@ Initialize(){
         llOwnerSay("Creating Pot Entry...");
     }
     //dbInsert(["uuid", "name", "spent", "won", "jackpot"]);
+    DBEntries = DBEMPTY;
     LightToggle(PWRLIGHT, FALSE, "Red");
     llSleep(LightHoldLength);
     LightToggle(PWRLIGHT, TRUE, "Red");
@@ -457,6 +460,18 @@ ScanforUsers(list UsersToCheck){
     llRegionSay(ScannerComChannel, ComMessage);
 }
 
+// Log Error Event to Games Event DB Server
+//Database LayOut = ["uuid", "theirip", "name", "eventtype", "message", "data"]
+LogEvent(string ErrType, string userid, string name, string EventType, string Message, string Data){
+    string SendString = ""; // Define Send String
+    if(ErrType=="Security"){
+        list SendList = [] + [SecurityKey] + ["INSERT"] + [userid, name, EventType, Message, Data];
+        SendString = llDumpList2String(SendList, "||");
+        
+    }
+    llRegionSayTo(GameEventDBServer, DBComChannel, SendString);
+}
+
 // Pay Active Users Their JackPot Share
 JackPotPayOut(list ActiveUsers){
     float JackPotRollOver = (float)PotSize * (float)((float)PotPercentage / 100.0); // Determine JackPot Amount to Roll Over
@@ -544,6 +559,7 @@ default
                 GameUserDBServer = llList2String(llParseString2List(data, "||", ""), 3);
                 GameEventDBServer = llList2String(llParseString2List(data, "||", ""), 4);
                 PotPercentage = llList2Integer(llParseString2List(data, "||", ""), 16);
+                DiagMode = llList2String(llParseString2List(data, "||", ""), 17);
                 if(DebugMode){
                     llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer));
                     llOwnerSay("Pot Percentage: "+(string)PotPercentage+"%");
@@ -588,7 +604,9 @@ default
             }
         }
         if(chan==ScannerComChannel){ // Response From Scanner
-            llOwnerSay("Data String: "+data);
+            if(DebugMode){
+                llOwnerSay("Data String: "+data);
+            }
             list ActiveUserList = llList2List(llParseString2List(data, ["||"], []), 2, -1);
             JackPotPayOut(ActiveUserList); // Pay Active Users, Update DB E.T.C
         }
@@ -665,9 +683,9 @@ default
                 if(DebugMode){
                     llOwnerSay("Server says Data dump was EMPTY!");
                 }
-                list SendList = [] + [SecurityKey] + ["INSERT"] + ["User DB Dump Was Empty!"] + ["Server Reponse Says Database dump was empty for DB: "+HoverTextString+"."];
-                string SendString = llDumpList2String(SendList, "||");
-                llRegionSayTo(GameEventDBServer, DBComChannel, SendString);
+                string message = "Server Reponse Says Database dump was empty for DB: "+HoverTextString;
+                LogEvent("General", EMPTY, EMPTY, "User DB Dump Was Empty!", message, EMPTY);
+                TimerMode = "JackPot";
                 llSetTimerEvent(UploadTimer);
             }else if(InputCMD=="DUMPOK"){
                 if(DebugMode){
@@ -680,7 +698,7 @@ default
                     llOwnerSay("Truncating Database...");
                 }
                 dbTruncate(DBName);
-                DBEntries = 0;
+                DBEntries = DBEMPTY;
                 TimerMode = "JackPot";
                 llSetTimerEvent(UploadTimer);
             }
@@ -693,14 +711,17 @@ default
         llSetTimerEvent(UploadTimer);
         if(TimerMode=="JackPot"){
             JackPotCounter++;
-            if(JackPotCounter==1){
+            if(JackPotCounter==MaxJackPots){
+                JackPotCounter = 0;
                 TimerMode = "Dump";
                 llSetTimerEvent(30.0); // Wait 30 Seconds until calling Timer Again with Dump Flag Set. This gives time for the JackPot Round to Complete.
             }
             llRegionSayTo(GameUserDBServer, DBComChannel, SecurityKey+"||"+"HRPOT");
         }else if(TimerMode=="Dump"){
             string DumpString = GetUserData();
-            llOwnerSay("Dump String: "+DumpString);
+            if(DebugMode){
+                llOwnerSay("Dump String: "+DumpString);
+            }
             string EncodedDumpString = llStringToBase64(DumpString);
             string MessageBody = "data="+EncodedDumpString;
             integer MessageBodyLength = llStringLength(MessageBody);
