@@ -486,11 +486,13 @@ default
             cmd = llList2String(llParseStringKeepNulls(data, ["||"], []), CMD);
             if(llList2String(llParseString2List(data, "||", ""), 0)==AskForKeys){
                 return;
-            }else if(cmd==AskForKeys){
+            }else if(cmd==AskForKeys){ // Read Configuration Data and Configure Script Parameters
                 GameServer = llList2String(llParseString2List(data, "||", ""), 2);
                 GameEventDBServer = llList2String(llParseString2List(data, "||", ""), 4);
+                BasePotAmt = llList2Integer(llParseString2List(data, "||", ""), 20);
+                UploadTimer = llList2Integer(llParseString2List(data, "||", ""), 21);
                 if(DebugMode){
-                    llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer));
+                    llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer)+"\nBase JackPot Amount: "+(string)BasePotAmt+"\nUpload Timer: "+(string)UploadTimer);
                 }
                 // Get Authed Users from NC
                 nrofnamesoncard = llGetNumberOfNotecardLines("whitelist");

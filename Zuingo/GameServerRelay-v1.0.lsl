@@ -1,4 +1,4 @@
-float requestTime = 10.0;
+float requestTime = 60.0;
 
 list values;
 list names;
@@ -15,13 +15,12 @@ key GameDBServer = "b9dbc6a4-2ac3-4313-9a7f-7bd1e11edf78"; // UUID of Game Datab
 key GameEventDBServer = "dbfa0843-7f7f-4ced-83f6-33223ae57639"; // UUID of Game Event Logger Database Server
 key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4"; // Security Key for Secure Communication. Currently my UUID
 integer ServerComChannel = -13546788; // Game Server Communication Channel
-integer ServerDBComChannel = -260046; // Game Database Server Communication Channel
 integer EventDBServerComChannel = -260046; // Game Event Database Server Communication Channel
 integer ComHandle;
 string EMPTY = "";
 string RequestFlag = "";
 string NextPot = "";
-integer DebugMode = TRUE;
+integer DebugMode = FALSE;
 integer Playing = FALSE;
 integer bGame = TRUE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
@@ -29,11 +28,12 @@ string DiagMode;
 
 default {
     state_entry() {
+        llSleep(10.0);
         llSetText("Relay Loading...", <1,1,1>, 1.0);
         llListenRemove(ComHandle);
         llSleep(0.1);
         ComHandle = llListen(ServerComChannel, EMPTY, EMPTY, EMPTY);
-        //requestTime = 300.0 - llFrand(200.00); // How often does the Server Relay Call GS for Updates
+        requestTime = 300.0 - llFrand(200.00); // How often does the Server Relay Call GS for Updates
         if(DebugMode){
             llOwnerSay("Request Time: "+(string)requestTime);
         }
@@ -176,14 +176,14 @@ default {
                     // Log in Event Server and Update Their Entry in User Database
                     list SendList = [] + SecurityKey + ["UPDATE"] + [playerKey, "", "1", MoneyWon, MoneyPaid, "1", "0" ];
                     string SendString = llDumpList2String(SendList, "||");
-                    llRegionSayTo(GameDBServer, ServerDBComChannel, SendString);
+                    llRegionSayTo(GameDBServer, EventDBServerComChannel, SendString);
                 }else{
                     integer MoneyPaid = (integer)llGetSubString(value1, 2, -1);
                     llSay(0, "Game Over!!, Better Luck Next Time!\n You have gained an entry in the JackPot!\nThe Jackpot will payout in approx "+NextPot+" minutes");
                     // Log in Event Server and Update Their Entry in User Database
                     list SendList = [] + SecurityKey + ["UPDATE"] + [playerKey, "", "1", "0", MoneyPaid, "0", "1" ];
                     string SendString = llDumpList2String(SendList, "||");
-                    llRegionSayTo(GameDBServer, ServerDBComChannel, SendString);
+                    llRegionSayTo(GameDBServer, EventDBServerComChannel, SendString);
                 }
             }
         }

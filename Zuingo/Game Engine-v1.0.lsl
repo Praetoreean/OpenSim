@@ -1,3 +1,4 @@
+// Number Grid Texture UUID
 key texture = "31ceaec0-d406-4a21-9ba9-e66b884f0fbe";
 
 key creatorKey;
@@ -74,11 +75,10 @@ key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4"; // Security Key for Se
 key GameEventDBServer = "373cd10f-2d38-481a-832b-1bd0fa8c850e"; // UUID of Game Event Logger Database Server
 key GameDBServer = "1de89765-6d57-4426-834d-d94f06fda4b5"; // UUID of Game Database Server in Server Cabinet
 integer ServerComChannel = -13546788; // Game Server Communication Channel
-integer GameDBComChannel = -260045; // Game Database Server Communication Channel
 integer EventDBServerComChannel = -260046; // Game Event Database Server Communication Channel
 integer ServerComHandle;
 list RoundLengthList = [];
-integer DebugMode = TRUE;
+integer DebugMode = FALSE;
 string AskForKeys = "TheKeyIs(Mq=h/c2)";
 list AdminMenuUsers = [];
 string DiagMode;
@@ -288,13 +288,13 @@ integer ssCheckLines(integer num) {
 default {
     state_entry() {
         creatorKey = llGetCreator();
-        //llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
+        llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
         llListenRemove(ServerComHandle);
         ServerComHandle = llListen(ServerComChannel, "", "", "");
         if(DebugMode){
             llOwnerSay("Booted Main Script");
         }
-        llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
+        //llRequestPermissions(llGetOwner(), PERMISSION_DEBIT);
     }
     
     run_time_permissions(integer perm){
@@ -349,7 +349,7 @@ default {
                 llOwnerSay("Game Configureation ERROR!");
             }
             integer i;
-            list TempList = llList2List(NewKeys, 17, -1);
+            list TempList = llList2List(NewKeys, 24, -1);
             if(DebugMode){
                 llOwnerSay("Loading Admin Menu Users...");
             }
@@ -527,7 +527,7 @@ state Ready {
             // Update Pot Amount in Local Game Server DB
             list SendList = [] + SecurityKey + ["UPPOT"] + (list)ToPot; // Create List to be Parsed to String
             string SendString = llDumpList2String(SendList, "||");
-            llRegionSayTo(GameDBServer, GameDBComChannel, SendString);
+            llRegionSayTo(GameDBServer, EventDBServerComChannel, SendString);
         }
     }
     

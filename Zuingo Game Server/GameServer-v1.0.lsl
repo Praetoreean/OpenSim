@@ -51,7 +51,6 @@ list pots           = ["10", "25", "75", "150", "300", "400", "1250", "2500", "3
 list gameValues     = ["P$5", "P$10", "P$25", "P$50", "P$75", "P$100", "P$250", "P$500", "P$750", "P$1000"];
 list Multipliers    = ["2", "2.5", "3", "3", "4", "4", "5", "5", "5", "5"];
 list RoundLengths   = ["5", "5", "6", "8", "8", "10", "10", "15", "15", "20"];
-integer TimeToPot = 60; // Minutes till Next Jack Pot
 list lMummy = [];
 string roundTime;
 string pointsSingleField;
@@ -62,6 +61,15 @@ string pointsCash;
 string pointsPlus;
 string PotPercent;
 string DiagMode;
+// JackPot Configuration Directives
+string MaxJackPots;
+string JackPotTimer;
+string InitialJackPot;
+string CommonComChannel;
+string AvatarScannerChannel;
+
+// User Database Configuration Directives
+string UserUploadTimer;
     
     // Functions
 
@@ -263,9 +271,39 @@ LoadConfig(string data){
                     }
                 }else if(name=="diagmode"){
                     DiagMode = value;
-                    if(DiagMode!="" && DebugMode){
+                    if(DebugMode){
                         llOwnerSay("Diagnostic Mode: "+DiagMode);
                     }   
+                }else if(name=="maxjackpots"){
+                    MaxJackPots = value;
+                    if(DebugMode){
+                        llOwnerSay("Max JackPots per Cycle: "+MaxJackPots);
+                    }
+                }else if(name=="jackpottimer"){
+                    JackPotTimer = value;
+                    if(DebugMode){
+                        llOwnerSay("JackPot Timer: "+JackPotTimer);
+                    }
+                }else if(name=="initialjackpot"){
+                    InitialJackPot = value;
+                    if(DebugMode){
+                        llOwnerSay("Initial JackPot Value: "+InitialJackPot);
+                    }
+                }else if(name=="useruploadtimer"){
+                    UserUploadTimer = value;
+                    if(DebugMode){
+                        llOwnerSay("User DB Backup Timer: "+UserUploadTimer);
+                    }
+                }else if(name=="commoncomchannel"){
+                    CommonComChannel = value;
+                    if(DebugMode){
+                        llOwnerSay("Common Com Channel: "+CommonComChannel);
+                    }
+                }else if(name=="scannercomchannel"){
+                    AvatarScannerChannel = value;
+                    if(DebugMode){
+                        llOwnerSay("Scanner Com Channel: "+AvatarScannerChannel);
+                    }
                 }
                 LightToggle(CFGLIGHT, FALSE, "Orange");
         }else{ //  line does not contain equal sign
@@ -288,6 +326,7 @@ RegisterServer(string cmd){
 // Main Program
 default{
     on_rez(integer params){
+        llGiveInventory(llGetOwner(), llGetInventoryName(INVENTORY_NOTECARD, 1));
         llResetScript();
     }
     
@@ -354,7 +393,7 @@ default{
             LightToggle(OUTLIGHT, FALSE, "Green");         
             return;
         }else if(data=="GetPotTimeOut"){
-            list SendList = [] + SecurityKey + TimeToPot; // Compile Lists
+            list SendList = [] + SecurityKey + JackPotTimer; // Compile Lists
             string SendString = llDumpList2String(SendList, "||"); // Dump to String
             LightToggle(INLIGHT, FALSE, "Green");
             LightToggle(OUTLIGHT, TRUE, "Green");
@@ -363,7 +402,7 @@ default{
             LightToggle(OUTLIGHT, FALSE, "Green");
             return; 
         }else if(data==SecureRequest){
-            list GameConfig = [] + lMummy + [roundTime] + [pointsSingleField] + [pointsLine] + [pointsPattern] + [pointsAll] + [pointsCash] + [pointsPlus] + [PotPercent] + [DiagMode];
+            list GameConfig = [] + lMummy + [roundTime] + [pointsSingleField] + [pointsLine] + [pointsPattern] + [pointsAll] + [pointsCash] + [pointsPlus] + [PotPercent] + [DiagMode] + [MaxJackPots] + [JackPotTimer] + [InitialJackPot] + [UserUploadTimer] + [CommonComChannel] + [AvatarScannerChannel];
             list SendList = [SecurityKey] + [SecureRequest] + KEYS + GameConfig + AuthedUsers;
             string SendString = llDumpList2String(SendList, "||");
             if(DebugMode){

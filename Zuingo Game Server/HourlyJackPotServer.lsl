@@ -566,9 +566,10 @@ default
                 GameEventDBServer = llList2String(llParseString2List(data, "||", ""), 4);
                 PotPercentage = llList2Integer(llParseString2List(data, "||", ""), 16);
                 DiagMode = llList2String(llParseString2List(data, "||", ""), 17);
+                MaxJackPots = llList2Integer(llParseString2List(data, "||", ""), 18);
+                UploadTimer = llList2Integer(llParseString2List(data, "||", ""), 19);
                 if(DebugMode){
-                    llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer));
-                    llOwnerSay("Pot Percentage: "+(string)PotPercentage+"%");
+                    llOwnerSay("Server UUID To Name Resolutions:\nGame Server: "+llKey2Name(GameServer)+"\nGame Event DB Server: "+llKey2Name(GameEventDBServer)+"\nPot Percentage: "+(string)PotPercentage+"%\nMax # JackPots per Cycle: "+(string)MaxJackPots+"\nJackPot Timer: "+(string)UploadTimer);
                 }
                 // Get Authed Users from NC
                 nrofnamesoncard = llGetNumberOfNotecardLines("whitelist");
