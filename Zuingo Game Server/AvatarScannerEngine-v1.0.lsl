@@ -13,7 +13,7 @@
         integer ComChannel = -19000;
         integer DBComChannel = -270000;
         string EMPTY = "";
-        string SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
+        string SecurityKey = "UseYourOwnKey";
         key GameEventDBServer = "b007f16b-5658-4595-91d1-17dcaa75ed28";
         string HoverTextString = "Avatar Scanner";
             // Incoming Field Ids

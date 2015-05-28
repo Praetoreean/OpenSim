@@ -9,18 +9,18 @@ integer ServerComChannel = -13546788; // Secret Negative Channel for Server Comm
 list KEYS = [ "5b8c8de4-e142-4905-a28f-d4d00607d3e9", "b9dbc6a4-2ac3-4313-9a7f-7bd1e11edf78", "dbfa0843-7f7f-4ced-83f6-33223ae57639" ];
 list AuthedUsers = [];
 string EMPTY = "";
-key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
+key SecurityKey = "useyourownkey";
 float LightHoldLength = 0.1;
-string SecureRequest = "TheKeyIs(Mq=h/c2)";
+string SecureRequest = "(Mq=h/c2)";
 string cName = ".gameconfig"; // Name of Configuration NoteCard
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
-string URLBase = "http://api.orbitsystems.ca/api.php";
+string URLBase = "http://orbitsystems.ca/";
 list HTTPRequestParams = [
     HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded",
     HTTP_BODY_MAXLENGTH, 16384,
-    HTTP_CUSTOM_HEADER, "CUSKEY", "TheKeyIs(Mq=h/c2)"
+    HTTP_CUSTOM_HEADER, "CUSKEY", "(Mq=h/c2)"
 ];
 
 

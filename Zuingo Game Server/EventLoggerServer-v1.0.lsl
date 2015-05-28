@@ -264,19 +264,19 @@ integer DBComChannel = -260046;
 string DBName = "HeavenAndHellEvents"; // Database for Heaven and Hell Player Info
 string HoverTextString = "Heaven And Hell\n Event Database"; // Base String Name of Databse Engine
 string EMPTY = "";
-key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
+key SecurityKey = "UserYourOwnKey";
 integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
 float UploadTimer = 1800;
 string ServerType = "EVENT"; // Defines to Remote Server what type of table to build. Send as header in register request. (USERDB, EVENT, JACKPOT, Main)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
-string URLBase = "http://api.orbitsystems.ca/api.php";
+string URLBase = "http://orbitsystems.ca";
 list HTTPRequestParams = [
     HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded",
     HTTP_BODY_MAXLENGTH, 16384,
-    HTTP_CUSTOM_HEADER, "CUSKEY", "TheKeyIs(Mq=h/c2)"
+    HTTP_CUSTOM_HEADER, "CUSKEY", "(Mq=h/c2)"
 ];
 
         // Indicator Light Config

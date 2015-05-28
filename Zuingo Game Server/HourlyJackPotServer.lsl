@@ -268,24 +268,24 @@ integer ScannerComHandle;
 string DBName = "HeavenAndHellHourlyJackPot"; // Database for Heaven and Hell Player Info
 string HoverTextString = "Heaven And Hell\n Hourly Jackpot Server"; // Base String Name of Databse Engine
 string EMPTY = "";
-key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
+key SecurityKey = "UseYourOwnKey";
 key GameServer = "";
 key GameEventDBServer = "";
 key GameUserDBServer = "";
 integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
-string AskForKeys = "TheKeyIs(Mq=h/c2)";
+string AskForKeys = "(Mq=h/c2)";
 string ServerType = "JACKPOT";
 integer UploadTimer = 45; // Frequency in Seconds of User Database Upload
 string TimerMode = "JackPot"; // Hold TimerMode State (either JackPot or Dump)
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
-string URLBase = "http://api.orbitsystems.ca/api.php";
+string URLBase = "http://orbitsystems.ca";
 list HTTPRequestParams = [
     HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded",
     HTTP_BODY_MAXLENGTH, 16384,
-    HTTP_CUSTOM_HEADER, "CUSKEY", "TheKeyIs(Mq=h/c2)"
+    HTTP_CUSTOM_HEADER, "CUSKEY", "(Mq=h/c2)"
 ];
 
         // Indicator Light Config
