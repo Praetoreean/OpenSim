@@ -6,10 +6,16 @@
 # Server Configuration
 
 #Are we in Debug Mode?
-DebugMode=TRUE
+DebugMode=FALSE
 
 # Server Communication Channel
 ServerComChannel=-13546788
+
+# Common Communication Channel (ie DBComChannel)
+CommonComChannel=-260046
+
+# Avatar Scanner Communication Channel
+ScannerComChannel=-18006
 
 #Security Key (Used for Inter-Device Communication)
 SecurityKey=3d7b1a28-f547-4d10-8924-7a2b771739f4
@@ -49,7 +55,7 @@ user=Sebastian Viper
 #JackPot Percentage
 PotPercent=10
 
-#List Of Possible Dedection Percentages
+#List Of Possible Deduction Percentages
 Mummy=0.20||0.30||0.40||0.50
 # How Long should each Round Last
 roundTime=25
@@ -65,3 +71,20 @@ pointsAll=10000
 pointsCash=1000
 # Points Awarded for 
 pointsPlus=1000
+
+# Diagnostic Mode
+DiagMode=FALSE
+
+# JackPot Server Configuration Directives
+
+# Maximum # of Jackpots Before Server Reset
+MaxJackPots=6
+# JackPot Timer (in seconds). The Time inbetween awarding jackpots.  (3600=1hr)*6=21600(6hrs)
+JackPotTimer=3600
+# Initial Jackpot Value (NOTE: Stored in User DB Server)
+InitialJackPot=100
+
+# User Database Server Configuration Directives
+
+# Upload Timer. Time Between Backing Up to Offworld Server (in seconds). Database is Truncated at this same interval.
+UserUploadTimer=3720
