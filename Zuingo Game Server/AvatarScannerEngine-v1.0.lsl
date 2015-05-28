@@ -10,11 +10,11 @@
 // Configuration
 
     // Constants
-        integer ComChannel = -18006;
-        integer DBComChannel = -260046;
+        integer ComChannel = -19000;
+        integer DBComChannel = -270000;
         string EMPTY = "";
         string SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
-        key GameEventDBServer = "dbfa0843-7f7f-4ced-83f6-33223ae57639";
+        key GameEventDBServer = "b007f16b-5658-4595-91d1-17dcaa75ed28";
         string HoverTextString = "Avatar Scanner";
             // Incoming Field Ids
                 integer SECKEY = 0;
@@ -25,7 +25,7 @@
         integer GListLength;
         integer SFired;
     // Switches
-        integer DebugMode = FALSE;
+        integer DebugMode = TRUE;
     // Handles
         integer ComHandle;
 // Custom Functions
