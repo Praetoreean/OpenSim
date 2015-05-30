@@ -167,9 +167,23 @@ ScanForSeats(){
         string Name = llGetLinkName(i);
         if(Name=="seat"){
             Seats = Seats + [ i ];
-            DebugMessage("Found Seat "+(string)llGetListLength(Seats)+" Link ID: "+llList2String(Seats, -1));
+            DebugMessage("Found Seat "+(string)llGetListLength(Seats)+" Link ID: "+llList2String(Seats, -1)+". Setting Sit Target...");
+            llLinkSitTarget(llList2Integer(Seats, -1),<0.0,0.0,1.0>, ZERO_ROTATION);
         }
     }
+    Display("01");
+    
+}
+
+// Change LED Display
+Display(string Text){
+    DebugMessage("Updating Internal LCD Display with: "+Text);
+    if(llStringLength(Text)==2){
+        Text = "  " + Text + "  ";
+    }else{
+        Text = "  ??  ";
+    }
+    llMessageLinked(LINK_SET, 281000, Text, "''''");
 }
 
 
