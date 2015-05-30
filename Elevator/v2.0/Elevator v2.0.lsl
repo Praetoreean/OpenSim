@@ -1,35 +1,9 @@
-// Default Program FrameWork
+// Key Framed Elevator v2.0
+// Created by Tech Guy of IO 2015
 /*
 
-    This script facilitiates the function of the elevator call button located on each floor OUTSIDE the elevator.
-    Initialization read .config notecard, and then makes a general call on a channel ComChannel asking for config. A           Response is expected from the Server Prim, containing any extra centralized configuration data. 
-        (ie: 
-            Elevator Key,
-            Elevtaor ComChannel
-            ElevatorMode (On/Off)
-        )
+    This elevator uses llSetKeyframedMotion() to facilitate smooth uniform motion.
 
-The Communication system for all parts of the elevator system uses listeners tuned to a channel but nothing else.
-In order to allow each script to process both "Broadcast" and "Prim Specific Messages" the UUID of the destination prim is expected as the first parameter in the message. If a message is received where the 1st parameter does not match the scripts UUID, a seperate logic path is taken during the listen procesing.
-
-TX Com Protocol
-    1. Button to Elevator Server Communications
-        When the Elevator button is reset, it makes an llRegionSay() call on {ComChannel} asking for an extra configuration         details not obtained during the reading of the .config notecard.
-        The Request format is: GETCONFIG||OUTCALLBUTTON||{sFloor}
-    
-    2. Call Elevator to Floor
-        The Elevator call buttons when pushed send an llRegionSayTo() the {ElevatorKey} on {ComChannel}
-        The Message Sent is simply the iFloor variables sent as a sFloor.
-        
-RX Com Protocol  
-    1. Elevator Server to Button Communcations
-        The configuration message is expected in the following format...
-            {llGetKey()}||CONFIG||{ElevatorKey}||{ElevatorComChannel}||{OpMode}
-
-    2. General Command Reception
-        This Type of communcation is used to notify the call button of status of the elevator.
-        The format is as follows...
-            {llGetKey()}||CMD||ARRIVED
 */
 
 // Created by Tech Guy of IO
@@ -51,10 +25,17 @@ RX Com Protocol
     // Config Card Reading Variables
         integer cLine; // Holds Configuration Line Index for Loading Config Loop
         key cQueryID; // Holds Current Configuration File Line during Loading Loop
-    // Configuration Directives
-        key ElevatorKey = NULL_KEY; // UUID of Elevator Car
-        integer Floor = 1;
-        key ArriveDing = NULL_KEY;
+    // Configuration Variables
+        list Floors = [ 1 ];
+        list Seats = [];
+        integer CurrentFloor = 1;
+        list DestFloor = []; // Holds List of Floors that have called it or it has been order to go to. In Order of Selection
+        integer OpMode = FALSE; // Elevator is in Non-Operational Mode
+        string RunMode = "Offline"; // Ready/MoveUp/MoveDown/Offline
+        float SpeedT = 5.0; // Travel Speed (Multipled by Travel Distance to get Key Framed Animation Time)
+        float DiM = 0.0; // Distance in Meters from current Floor to Next Floor in DestFloor List.
+        
+        
         
         
 // System Constants
@@ -73,7 +54,6 @@ list colors = ["BLUE", "AQUA", "TEAL", "OLIVE", "GREEN", "LIME", "ORANGE", "RED"
 /* This Section contains variables representing switches (integer(binary) yes/no) or modes (string "modename" */
     // Debug Mode Swtich
         integer DebugMode = FALSE; // Is Debug Mode Enabled before Reading Obtaining Configuation Information
-        integer OpMode = FALSE; // Is the Elevator is Active Operations Mode
 
 // Imported Functions
 /* This section contains any functions that were not written by Tech Guy */
@@ -112,12 +92,6 @@ Initialize(){
 // System has started Function (Runs After Configuration is Loaded, as a result of EOF)
 SystemStart(){
     SendMessage("System Started!", llGetOwner());
-}
-
-// Ask for Config
-AskForConfig(){
-    DebugMessage("Asking for configuration directives from Elevator Server...");
-    llRegionSay(ComChannel, "GETCONFIG||OUTCALLBUTTON||"+(string)Floor);
 }
 
 // Add Admin (Add provided Legacy Name to Admins List after extrapolating userKey)
@@ -169,14 +143,12 @@ LoadConfig(string data){
                     }
                 }else if(name=="comchannel"){
                     ComChannel = (integer)value;
-                    DebugMessage("Config Com Channel: "+(string)ComChannel+", Opening Channel...");
-                    llListenRemove(ComHandle);
-                    llSleep(0.2);
+                    DebugMessage("Opening Com Channel ("+(string)ComChannel+")...");
                     ComHandle = llListen(ComChannel, EMPTY, EMPTY, EMPTY);
-                    if(ComHandle!=0){
-                        DebugMessage("Channel Open!");
+                    if(ComHandle>0){
+                        DebugMessage("Com Channel Open!");
                     }else{
-                        DebugMessage("Error Opening Channel!");
+                        DebugMessage("Unable to Open Com Channel ("+(string)ComChannel+")!");
                     }
                 }
         }else{ //  line does not contain equal sign
@@ -186,42 +158,16 @@ LoadConfig(string data){
     }
 }
 
-// Turn the Call Button On and Off (ie Lights, Glow E.T.C)
-ButtonLight(integer Mode){
-    if(Mode){
-        llSetPrimitiveParams([
-            PRIM_COLOR, ALL_SIDES, <255,255,0>, 1.0,
-            PRIM_POINT_LIGHT, TRUE, <128,128,0>, 1.0, 0.7, 0.0,
-            PRIM_GLOW, ALL_SIDES, 0.10,
-            PRIM_FULLBRIGHT, ALL_SIDES, TRUE]
-        );
-    }else{
-        llSetPrimitiveParams([
-            PRIM_COLOR, ALL_SIDES, <255,255,255>, 1.0,
-            PRIM_POINT_LIGHT, FALSE, <128,128,0>, 1.0, 0.7, 0.0,
-            PRIM_GLOW, ALL_SIDES, 0.0,
-            PRIM_FULLBRIGHT, ALL_SIDES, FALSE]
-        );
-    }
-}
-
-//Process Listen Responses
-ProcessResponse(string Type, list InputData){
-    if(Type=="Config"){ // We are processing an initial configuration data response.
-        ElevatorKey = llList2Key(InputData, 2);
-        ComChannel = llList2Integer(InputData, 3);
-        if(llList2String(InputData, 4)=="TRUE"){ OpMode = TRUE; }else{ OpMode = FALSE; }
-        ArriveDing = llList2Key(InputData, 4);
-        DebugMessage("Elevator Car: "+llKey2Name(ElevatorKey)+"\nElevator Com Channel: "+(string)ComChannel+"\nClosing Old Com Channel...");
-        llListenRemove(ComHandle);
-        ComHandle = 0;
-        if(ComHandle<=0){
-            DebugMessage("Old Channel Closed! Opening New Channel...");
-            ComHandle = llListen(ComChannel, EMPTY, EMPTY, EMPTY);
-        }
-        if(ComHandle>0){
-            DebugMessage("New Com Channel Open!");
-            SystemStart();
+// Scan LinkSet for Prims marked seat and add their link id to seats list
+ScanForSeats(){
+    integer NumLinks = llGetNumberOfPrims();
+    integer i;
+    for(i=1;i<NumLinks;i++){
+        //DebugMessage("Checking Prim "+(string)i+" for seat...");
+        string Name = llGetLinkName(i);
+        if(Name=="seat"){
+            Seats = Seats + [ i ];
+            DebugMessage("Found Seat "+(string)llGetListLength(Seats)+" Link ID: "+llList2String(Seats, -1));
         }
     }
 }
@@ -236,8 +182,48 @@ default{
     }
     
     state_entry(){
-        ButtonLight(FALSE);
         Initialize();
+    }
+    
+    listen(integer channel, string sender, key id, string msg){
+        if(channel==ComChannel){
+            list InputData = llParseString2List(msg, ["||"], []);
+            if(llList2String(InputData, 0)==llGetKey()){
+                if(llList2String(InputData, 1)=="CONFIG"){
+                    ComChannel = llList2Integer(InputData, 2);
+                    DebugMessage("New Com Channel: "+(string)ComChannel+" Closing old channel...");
+                    llListenRemove(ComHandle);
+                    ComHandle = 0;
+                    DebugMessage("Opening New Channel...");
+                    ComHandle = llListen(ComChannel, EMPTY, EMPTY, EMPTY);
+                    if(ComHandle>0){
+                        DebugMessage("New Com Channel ("+(string)ComChannel+") Open!");
+                    }else{
+                        DebugMessage("Could not open new com channel!");
+                        return;
+                    }
+                    if(llList2String(InputData, 3)=="TRUE"){ OpMode = TRUE; }else{ OpMode = FALSE; }
+                    if(OpMode){
+                        DebugMessage("Elevator Starting in Online Mode!");
+                        RunMode = "Ready";
+                    }else{
+                        DebugMessage("Elevator Starting in Offline Mode!");
+                        RunMode = "Offline";
+                    }
+                    SpeedT = llList2Float(InputData, 4);
+                    DebugMessage("Speed: "+(string)SpeedT);
+                    integer i;
+                    list TempFloors = llList2List(InputData, 5, -1);
+                    for(i=0;i<llGetListLength(TempFloors);i++){
+                        Floors = Floors + [llList2Float(TempFloors, i)];
+                        DebugMessage("Registering Floor "+(string)(i + 1)+" Z-Axis as: "+(string)llList2String(Floors, -1));
+                    }
+                    ScanForSeats();
+                }
+            }else{
+                return;
+            }
+        }
     }
     
      // DataServer Event Called for Each Line of Config NC. This Loop It was Calls LoadConfig()
@@ -248,48 +234,10 @@ default{
                 ++cLine; // Increment Line Index
                 cQueryID = llGetNotecardLine(ConfigFile, cLine); // Attempt to Read Next Config Line (Re-Calls DataServer Event)
             }else{ // IF EOF (End of Config loop, and on Blank File)
-                AskForConfig();
+                DebugMessage("Asking Elevator Panel Server for Config...");
+                string SendString = "GETCONFIG||ELEVATOR";
+                llRegionSay(ComChannel, SendString);
             }
-        }
-    }
-    
-    listen(integer channel, string sender, key id, string msg){
-        DebugMessage("Listen Fired: "+(string)msg);
-        if(channel==ComChannel){
-            list InputData = llParseString2List(msg, ["||"], []);
-            if(llList2Key(InputData, 0)==llGetKey()){ // Response was destined for this prim
-                string CMD = llList2String(InputData, 1);
-                if(CMD=="CONFIG"){
-                    DebugMessage("Sending to Config Processor...");
-                    ProcessResponse("Config", InputData);
-                }else if(CMD=="CMD"){
-                    string Command = llList2String(InputData, 2);
-                    if(Command=="ARRIVED"){ // Car Has Arrived
-                        // Turn Light Off
-                        ButtonLight(FALSE);
-                        string Display = EMPTY;
-                        if(Floor<10){
-                            Display = "  0"+(string)Floor+"  ";
-                        }else{
-                            Display = "  "+(string)Floor+"  ";
-                        }
-                        llMessageLinked(LINK_SET, 281000, Display, "''''");
-                        llPlaySound(ArriveDing, 0.5);
-                    }
-                }
-            }
-        }
-    }
-    
-    touch_start(integer total_number)
-    {
-        key UserKey = llDetectedKey(0);
-        if(OpMode){
-            llRegionSayTo(ElevatorKey, ComChannel, (string)Floor);
-            ButtonLight(TRUE);
-            llRegionSayTo(UserKey, 0, "Elevator called to floor: "+(string)Floor);
-        }else{
-            llRegionSayTo(UserKey, 0, "Elevator is currently non operational!");
         }
     }
     

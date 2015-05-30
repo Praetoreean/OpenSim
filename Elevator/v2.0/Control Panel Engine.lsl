@@ -9,6 +9,13 @@
             ElevatorMode (On/Off)
         )
 
+    
+    Communication Protocol Help
+        
+        System Requesting Configuration Data
+            Data is received on ComChannel Listener
+            Request Format:  GETCONFIG||{SYSTEMTYPE}||{Floor}||{AnyOtherData}||
+            
 */
 
 // Created by Tech Guy of IO
@@ -34,6 +41,10 @@
         integer cLine; // Holds Configuration Line Index for Loading Config Loop
         key cQueryID; // Holds Current Configuration File Line during Loading Loop
         key UserKey; // Hold Currently Interacting User UUID
+    // Configuration Variables
+        list Floors = [];
+        float SpeedT; // Travel Speed (Used for variabled of same name in elevator engine)
+        
         
         
 // System Constants
@@ -98,12 +109,12 @@ integer SecurityCheck(key id){
 
 // Main Initialization Logic, Executed Once Upon Script Start    
 Initialize(){
-    Display("Display", 1, EMPTY);
-    Display("Display", 2, EMPTY);
-    Display("Display", 3, EMPTY);
-    Display("Display", 4, EMPTY);
-    Display("Display", 1, "Wholearth Lifts");
-    Display("Display", 3, "Configuring...");
+    Display("Update", 1, EMPTY);
+    Display("Update", 2, EMPTY);
+    Display("Update", 3, EMPTY);
+    Display("Update", 4, EMPTY);
+    Display("Update", 1, "Wholearth Elevator");
+    Display("Update", 3, "Configuring...");
     SendMessage(BootMessage, llGetOwner()); // State Booting Message
     MenuComChannel = (integer)(llFrand(-1000000000.0) - 1000000000.0); // Randomize Dialog Com Channel
     SendMessage("Configuring...", llGetOwner()); // Message Owner that we are starting the Configure Loop
@@ -112,7 +123,7 @@ Initialize(){
 
 // System has started Function (Runs After Configuration is Loaded, as a result of EOF)
 SystemStart(){
-    Display("Display", 3, "System Online!");
+    Display("Update", 3, "System Online!");
     SendMessage("System Started!", llGetOwner());
 }
 
@@ -164,11 +175,12 @@ LoadConfig(string data){
                         llOwnerSay("Debug Mode: Disabled!");
                     }
                 }else if(name=="comchannel"){
+                    ComChannel = (integer)value;
                     if(ComHandle!=0){
                         DebugMessage("Removing Old Com Channel...");
                         llListenRemove(ComHandle);
                     }
-                    DebugMessage("Opening Com Channel...");
+                    DebugMessage("Opening Com Channel ("+(string)ComChannel+")...");
                     ComHandle = llListen(ComChannel, EMPTY, EMPTY, EMPTY);
                     if(ComHandle>0){
                         DebugMessage("Com Channel Open!");
@@ -183,6 +195,22 @@ LoadConfig(string data){
                     DebugMessage("Elevator Com Channel: "+(string)ElevatorChannel);
                 }else if(name=="admin"){
                     AddAdmin(value);
+                }else if(name=="operating"){
+                    if(llToUpper(value)=="TRUE"){
+                        OpMode = TRUE;
+                        DebugMessage("Elevator is in Operational Mode!");
+                    }else{
+                        DebugMessage("Elevator is in Non-Operational Mode!");
+                    }
+                }else if(name=="floor"){
+                    Floors = Floors + [(float)value];
+                    if(llGetListLength(Floors)==1){
+                        Display("Update", 3, "Reading Floor Heights");
+                    }
+                    DebugMessage("Floor "+(string)llGetListLength(Floors)+" Z-Axis: "+(string)llList2String(Floors, -1));
+                }else if(name=="speedt"){
+                    SpeedT = (float)value;
+                    DebugMessage("SpeedT: "+value);
                 }
         }else{ //  line does not contain equal sign
                 SendMessage("Configuration could not be read on line " + (string)cLine, NULL_KEY);
@@ -214,7 +242,7 @@ ShowMenu(key id, string Menu){
 
 // Change LED Display
 Display(string CMD, integer Line, string Text){
-    if(CMD=="Display"){
+    if(CMD=="Update"){
         if(Text==""){
             integer i;
             for(i=1;i<5;i++){
@@ -226,21 +254,22 @@ Display(string CMD, integer Line, string Text){
             integer SideSpaces = ((24 - StringLength) / 2 );
             integer i;
             string Message = EMPTY;
-            for(i=0;i<SideSpaces;i++){
+            string Spaces = EMPTY;
+            for(i=1;i<=SideSpaces;i++){
                 Message = Message + " ";
                 if(llStringLength(Message)<22){
-                    if(i==(SideSpaces-1)){
-                        Message = Message + Text;
+                    if(i==SideSpaces && llStringLength(Message)<(StringLength + SideSpaces)){
+                        Message = Message + " " + Text;
                         i = 0;
                     }
                 }
             }
             string Cell = "2"+(string)Line+"1000";
             integer BaseCell = (integer)Cell;
-            llOwnerSay("Updating Display, Line "+(string)Line+" Message: "+Message);
-            llMessageLinked(LINK_SET, BaseCell, llGetSubString(Message, 0, 5), "''''");
-            llMessageLinked(LINK_SET, (BaseCell + 1000), llGetSubString(Message, 6, 11), "''''");
-            llMessageLinked(LINK_SET, (BaseCell + 2000), llGetSubString(Message, 12, 18), "''''");
+            DebugMessage("Updating Display, Line "+(string)Line+" Message: "+Message);
+            llMessageLinked(LINK_SET, BaseCell, llGetSubString(Message, 1, 6), "''''");
+            llMessageLinked(LINK_SET, (BaseCell + 1000), llGetSubString(Message, 7, 12), "''''");
+            llMessageLinked(LINK_SET, (BaseCell + 2000), llGetSubString(Message, 13, 18), "''''");
             llMessageLinked(LINK_SET, (BaseCell + 3000), llGetSubString(Message, 19, 24), "''''");
         }
     }
@@ -270,11 +299,16 @@ default{
                 string For = llList2String(InputData, 1);
                 integer CallingFloor = llList2Integer(InputData, 2);
                 list Response = [];
+                string Mode;
+                if(OpMode){ Mode = "TRUE"; }else{ Mode = "FALSE"; }
                 if(For=="OUTCALLBUTTON"){ // Responde to Request for Config Data from OutSide Elevator Call Button
-                    Response = [(string)id, "CONFIG", ElevatorKey, ComChannel];
+                    Response = [(string)id, "CONFIG", ElevatorKey, ComChannel, Mode];
+                }else if(For=="ELEVATOR"){
+                    Response = [(string)id, "CONFIG", ComChannel, Mode, SpeedT ] + Floors;
                 }
                 string ResponseString = llDumpList2String(Response, "||");
                 llRegionSayTo(id, ComChannel, ResponseString);
+                DebugMessage("Response: "+ResponseString+" was sent to: "+llKey2Name(id));
             }
         }else if(channel==MenuComChannel){ // Process Dialog Response
             if(msg=="Exit Menu"){
