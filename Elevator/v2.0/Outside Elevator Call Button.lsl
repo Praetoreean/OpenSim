@@ -262,21 +262,30 @@ default{
                 if(CMD=="CONFIG"){
                     DebugMessage("Sending to Config Processor...");
                     ProcessResponse("Config", InputData);
-                }else if(CMD=="CMD"){
-                    string Command = llList2String(InputData, 2);
-                    if(Command=="ARRIVED"){ // Car Has Arrived
-                        // Turn Light Off
-                        ButtonLight(FALSE);
-                        string Display = EMPTY;
-                        if(Floor<10){
-                            Display = "  0"+(string)Floor+"  ";
-                        }else{
-                            Display = "  "+(string)Floor+"  ";
-                        }
-                        llMessageLinked(LINK_SET, 281000, Display, "''''");
-                        llPlaySound(ArriveDing, 0.5);
-                    }
                 }
+            }else if(llList2Key(InputData, 0)=="ARRIVED"){
+                integer Where = llList2Integer(InputData, 1);
+                if(Floor==Where){ // Car Has Arrived
+                    // Turn Light Off
+                    ButtonLight(FALSE);
+                    string Display = EMPTY;
+                    if(Floor<10){
+                        Display = "  0"+(string)Floor+"  ";
+                    }else{
+                        Display = "  "+(string)Floor+"  ";
+                    }
+                    llMessageLinked(LINK_SET, 281000, Display, "''''");
+                    llPlaySound(ArriveDing, 0.5);
+                }
+            }else if(llList2Key(InputData, 0)=="FLOOR"){
+                integer NewFloor = llList2Integer(InputData, 1);
+                string Display = EMPTY;
+                if(NewFloor<10){
+                    Display = "  0"+(string)NewFloor+"  ";
+                }else{
+                    Display = "  "+(string)NewFloor+"  ";
+                }
+                llMessageLinked(LINK_SET, 281000, Display, "''''");
             }
         }
     }
@@ -285,7 +294,8 @@ default{
     {
         key UserKey = llDetectedKey(0);
         if(OpMode){
-            llRegionSayTo(ElevatorKey, ComChannel, (string)Floor);
+            string SendString = (string)ElevatorKey+"||GOTO||"+(string)Floor;
+            llRegionSayTo(ElevatorKey, ComChannel, SendString);
             ButtonLight(TRUE);
             llRegionSayTo(UserKey, 0, "Elevator called to floor: "+(string)Floor);
         }else{

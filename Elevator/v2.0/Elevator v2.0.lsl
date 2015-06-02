@@ -1,4 +1,4 @@
-// Key Framed Elevator v2.0
+    // Key Framed Elevator v2.0
 // Created by Tech Guy of IO 2015
 /*
 
@@ -14,6 +14,7 @@
     // Communication Channels
     integer MenuComChannel; // Menu Communications Channel for All User Dialog Communications
     integer ComChannel; // General Communication Channel for Inter-Device Communication
+    integer DoorChannel = 420;
 
 // System Variables
 /* This Section contains variables that will be used throughout the program. */
@@ -32,8 +33,17 @@
         list DestFloor = []; // Holds List of Floors that have called it or it has been order to go to. In Order of Selection
         integer OpMode = FALSE; // Elevator is in Non-Operational Mode
         string RunMode = "Offline"; // Ready/MoveUp/MoveDown/Offline
-        float SpeedT = 5.0; // Travel Speed (Multipled by Travel Distance to get Key Framed Animation Time)
-        float DiM = 0.0; // Distance in Meters from current Floor to Next Floor in DestFloor List.
+        float SpeedT; // Travel Speed (Multipled by Travel Distance to get Key Framed Animation Time)
+        float DiM; // Distance in Meters from current Floor to Next Floor in DestFloor List.
+        float SitTimeOut;
+        string TimerMode = "";
+        vector destPos;
+        vector nextfloor;
+        float travelTime;
+        integer dest_floor;
+        integer OutCallButtonChannel;
+        list ButtonLinks = [];
+        list ButtonNames = [];
         
         
         
@@ -91,6 +101,8 @@ Initialize(){
 
 // System has started Function (Runs After Configuration is Loaded, as a result of EOF)
 SystemStart(){
+    Display("01");
+    ResetButtons();
     SendMessage("System Started!", llGetOwner());
 }
 
@@ -171,8 +183,32 @@ ScanForSeats(){
             llLinkSitTarget(llList2Integer(Seats, -1),<0.0,0.0,1.0>, ZERO_ROTATION);
         }
     }
-    Display("01");
+    SystemStart();
     
+}
+
+// Reset Buttons
+ResetButtons(){
+    DebugMessage("Resetting Panel Buttons...");
+    integer NumLinks = llGetNumberOfPrims();
+    integer i;
+    ButtonLinks = [];
+    ButtonNames = [];
+    for(i=1;i<=NumLinks;i++){
+        string Name = llGetLinkName(i);
+        if(llList2String(llParseString2List(Name, [":"], []), 1)=="BUTTON"){
+            ButtonNames = ButtonNames + [Name];
+            DebugMessage("Button Name: "+llList2String(ButtonNames, -1)+" Added!");
+            ButtonLinks = ButtonLinks + [ i ];
+            DebugMessage("Button Link ID: "+llList2String(ButtonLinks, -1)+ "Added!");
+            llSetLinkPrimitiveParamsFast( i, [
+                PRIM_COLOR, ALL_SIDES, <255,255,255>, 1.0,
+                PRIM_POINT_LIGHT, FALSE, <128,128,0>, 1.0, 0.7, 0.0,
+                PRIM_GLOW, ALL_SIDES, 0.0,
+                PRIM_FULLBRIGHT, ALL_SIDES, FALSE]
+            );
+        }
+    }
 }
 
 // Change LED Display
@@ -180,10 +216,117 @@ Display(string Text){
     DebugMessage("Updating Internal LCD Display with: "+Text);
     if(llStringLength(Text)==2){
         Text = "  " + Text + "  ";
+    }else if(llStringLength(Text)==1){
+        Text = "  0" + Text + "  ";
     }else{
         Text = "  ??  ";
     }
     llMessageLinked(LINK_SET, 281000, Text, "''''");
+}
+
+// Add Floor to Floor Destination List
+AddFloor(integer Floor){
+    DestFloor = DestFloor + [Floor];
+    DebugMessage("Added Floor: "+(string)Floor+" to Destination Floor List.");
+}
+
+// Main System Control Function
+SystemCtl(string System, string CMD, integer LinkID){
+    if(System=="Doors"){
+        if(CMD=="Open"){
+            llRegionSay(DoorChannel, "Open||"+(string)CurrentFloor);
+        }else if(CMD=="Close"){
+            llRegionSay(DoorChannel, "Close||"+(string)CurrentFloor);
+        }
+    }else if(System=="Car"){
+        if(CMD=="Move"){
+            if(LinkID<CurrentFloor){ // Next Move is Down
+                DebugMessage("Going Down...");
+                dest_floor = LinkID;
+                integer DiF = (CurrentFloor - LinkID); // Number of Floors to Travel
+                travelTime = (DiF * SpeedT); // TravelTime
+                DiM = (llList2Float(Floors, CurrentFloor) - llList2Float(Floors, LinkID)); // Determine Distance in Meters
+                DiM = DiM * -1;
+                destPos = llGetPos();
+                destPos.z = llList2Float(Floors, LinkID);
+                nextfloor = llGetPos();
+                nextfloor.z = llList2Float(Floors, (CurrentFloor - 1));
+                llOwnerSay((string)DiM+"Next Floor:"+(string)llListFindList(Floors, [nextfloor.z])+"||"+(string)nextfloor.z);
+                llWhisper(0, "Going Down, Please take a seat or be left behind...");
+                RunMode = "MoveDown";
+                TimerMode = "StartMoving";
+                llSetTimerEvent(SitTimeOut);
+            }else if(LinkID>CurrentFloor){ // Next Move is Up
+                DebugMessage("Going Up...");
+                dest_floor = LinkID;
+                integer DiF = (LinkID - CurrentFloor); // Number of Floors to Travel
+                travelTime = (DiF * SpeedT); // TravelTime
+                DiM = (llList2Float(Floors, LinkID) - llList2Float(Floors, CurrentFloor)); // Travel Distance in Meters
+                destPos = llGetPos();
+                destPos.z = llList2Float(Floors, LinkID);
+                nextfloor = llGetPos();
+                nextfloor.z = llList2Float(Floors, (CurrentFloor + 1));
+                llWhisper(0, "Going Up, Please take a seat or be left behind...");
+                DebugMessage("LinkID: "+(string)LinkID+"\nDest Pos: "+(string)destPos.z+"Next Floor: "+(string)nextfloor.z);
+                RunMode = "MoveUp";
+                TimerMode = "StartMoving";
+                llSetTimerEvent(SitTimeOut);
+            }
+        }
+    }else if(System=="Button"){
+        if(CMD=="On"){
+            // Turn Button Light On
+            llSetLinkPrimitiveParamsFast(LinkID, [
+                PRIM_COLOR, ALL_SIDES, <255,255,0>, 1.0,
+                PRIM_POINT_LIGHT, TRUE, <128,128,0>, 1.0, 0.7, 0.0,
+                PRIM_GLOW, ALL_SIDES, 0.10,
+                PRIM_FULLBRIGHT, ALL_SIDES, TRUE]
+            );
+        }else if(CMD=="Off"){
+            llSetLinkPrimitiveParamsFast(LinkID, [
+                PRIM_COLOR, ALL_SIDES, <255,255,255>, 1.0,
+                PRIM_POINT_LIGHT, FALSE, <128,128,0>, 1.0, 0.7, 0.0,
+                PRIM_GLOW, ALL_SIDES, 0.0,
+                PRIM_FULLBRIGHT, ALL_SIDES, FALSE]
+            );
+            llRegionSay(OutCallButtonChannel, "ARRIVED||"+(string)CurrentFloor);
+        }
+    }
+}
+
+// Check Next Floor (Check if we have a next floor to go to. If so we go there and if not we mark as ready and leave the card on that floor
+CheckNextFloor(){
+    DebugMessage("Checking for Next Floor...");
+    integer NumFloors = llGetListLength(DestFloor);
+    if(NumFloors>0){
+        integer NextFloor = llList2Integer(DestFloor, 0);
+        DebugMessage("Found Next Floor "+(string)NextFloor);
+        if(NextFloor==CurrentFloor){
+            DebugMessage("Next Floor is Current Floor! Removing from List and recalling...");
+            if(NumFloors==1){
+                DestFloor = [];
+            }else if(NumFloors>1){
+                DestFloor = llList2List(DestFloor, 1, -1);
+            }
+            DebugMessage(llDumpList2String(DestFloor, "||"));
+            CheckNextFloor();
+        }else{
+            SystemCtl("Car", "Move", NextFloor);
+        }
+    }else if(NumFloors==0){
+        RunMode = "Ready";
+        TimerMode = EMPTY;
+        DebugMessage("Elevator Ready!");
+    }
+}
+
+// Get Button Link ID From List (ButtonLinks) Based on iFloor
+integer GetButtonLinkID(integer Floor){
+    DebugMessage("In: "+(string)Floor);
+    string ButtonName = (string)Floor+":BUTTON";
+    integer LinkID = llList2Integer(ButtonLinks, llListFindList(ButtonNames, [ButtonName]));
+    DebugMessage("Link ID: "+(string)LinkID);
+    return LinkID;
 }
 
 
@@ -200,6 +343,7 @@ default{
     }
     
     listen(integer channel, string sender, key id, string msg){
+        DebugMessage("Listen Fired: "+(string)msg);
         if(channel==ComChannel){
             list InputData = llParseString2List(msg, ["||"], []);
             if(llList2String(InputData, 0)==llGetKey()){
@@ -226,18 +370,79 @@ default{
                     }
                     SpeedT = llList2Float(InputData, 4);
                     DebugMessage("Speed: "+(string)SpeedT);
+                    SitTimeOut = llList2Float(InputData, 5);
+                    DebugMessage("SitTimeOut: "+(string)SitTimeOut);
+                    OutCallButtonChannel = llList2Integer(InputData, 6);
+                    DebugMessage("OutCallButton Channel: "+(string)OutCallButtonChannel);
                     integer i;
-                    list TempFloors = llList2List(InputData, 5, -1);
+                    list TempFloors = llList2List(InputData, 7, -1);
                     for(i=0;i<llGetListLength(TempFloors);i++){
                         Floors = Floors + [llList2Float(TempFloors, i)];
                         DebugMessage("Registering Floor "+(string)(i + 1)+" Z-Axis as: "+(string)llList2String(Floors, -1));
                     }
                     ScanForSeats();
+                }else if(llList2String(InputData, 1)=="GOTO"){
+                    integer GotoFloor = llList2Integer(InputData, 2);
+                    DebugMessage("Test");
+                    if(GotoFloor==CurrentFloor && RunMode=="Ready"){
+                        SystemCtl("Doors", "Open", GotoFloor);
+                        integer Link = GetButtonLinkID(GotoFloor);
+                        SystemCtl("Button", "Off", Link);
+                        return;
+                    }
+                    if(RunMode=="Ready"){
+                        SystemCtl("Car", "Move", GotoFloor);
+                    }else{
+                        AddFloor(GotoFloor);
+                    }
                 }
             }else{
-                return;
+                
             }
         }
+    }
+    
+    // For Detecting Touched to Interal Control Panel, This way Avoiding using listeners.
+    touch_start(integer num){
+        integer TouchedLink = llDetectedLinkNumber(0);
+        DebugMessage("Link Touched: "+(string)TouchedLink);
+        string ButtonName = llGetLinkName(TouchedLink);
+        list ButtonProperty = llParseString2List(ButtonName, [":"], []);
+        string CMD = llList2String(ButtonProperty, 0);
+        string LINKTYPE = llList2String(ButtonProperty, 1);
+        if(LINKTYPE!="BUTTON"){
+            return;
+        }
+        
+        SystemCtl("Button", "On", TouchedLink);
+        
+        if(CMD=="Open"){
+            SystemCtl("Doors", "Open", 0);
+            llSleep(1.0);
+            SystemCtl("Button", "Off", TouchedLink);
+        }else if(CMD=="Close"){
+            SystemCtl("Doors", "Close", 0);
+            llSleep(1.0);
+            SystemCtl("Button", "Off", TouchedLink);
+        }else{
+            if(RunMode=="Offline"){
+                llWhisper(0, "Elevator is Offline!");
+                llSleep(2.0);
+                SystemCtl("Button", "Off", TouchedLink);
+            }else if(RunMode=="Ready"){
+                if((integer)CMD==CurrentFloor){
+                    SystemCtl("Doors","Open", 0);
+                    llSleep(1.0);
+                    SystemCtl("Button", "Off", TouchedLink);
+                }else{
+                    AddFloor((integer)CMD);
+                    SystemCtl("Car", "Move", (integer)CMD);
+                }
+            }else{
+                AddFloor((integer)CMD);
+            }
+        }
+        //llOwnerSay("Link: "+(string)TouchedLink+" Name: "+ButtonName);
     }
     
      // DataServer Event Called for Each Line of Config NC. This Loop It was Calls LoadConfig()
@@ -259,6 +464,45 @@ default{
         if(change & CHANGED_INVENTORY){
             BootMessage = "Inventory Changed Detected, Re-Initializing...";
             llResetScript();
+        }
+    }
+    
+    timer(){
+        if(TimerMode=="StartMoving"){
+            llSetKeyframedMotion(
+                [<0.0,0.0,DiM>, travelTime],
+                [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+            );
+            RunMode = "Moving";
+            TimerMode = "Checking";
+            llSetTimerEvent(1.0);
+        }else if(TimerMode=="Checking"){
+            vector currentPos = llGetPos();
+            if(llRound(currentPos.z)==llRound(destPos.z)){ // We Have Arrived at the requested Floor
+                CurrentFloor = dest_floor;
+                Display((string)CurrentFloor);
+                SystemCtl("Doors", "Open", CurrentFloor);
+                llWhisper(0, "Arrived @ Floor "+(string)CurrentFloor);
+                llSetTimerEvent(0);
+                integer Link = GetButtonLinkID(CurrentFloor);
+                SystemCtl("Button", "Off", Link);
+                CheckNextFloor();
+            }
+            
+            if(llRound(currentPos.z)==llRound(nextfloor.z)){ // We have Passed through intermediate floors on our way to dst
+                if(dest_floor<CurrentFloor){ // We are moving down
+                    CurrentFloor--;
+                    nextfloor.z = llList2Float(Floors, (CurrentFloor - 1));
+                    DebugMessage("Elevator Saw Floor "+(string)CurrentFloor+" Next Floor: "+(string)nextfloor.z);
+                }else if(dest_floor>CurrentFloor){ // We are moving Up
+                    CurrentFloor++;
+                    nextfloor.z = llList2Float(Floors, (CurrentFloor + 1));
+                    DebugMessage("Elevator Saw Floor "+(string)CurrentFloor+" Next Floor: "+(string)nextfloor.z);
+                }
+                Display((string)CurrentFloor);
+                string SendString = "FLOOR||"+(string)CurrentFloor;
+                llRegionSay(OutCallButtonChannel, SendString);
+            }
         }
     }
 }

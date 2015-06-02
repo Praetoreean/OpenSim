@@ -44,6 +44,7 @@
     // Configuration Variables
         list Floors = [];
         float SpeedT; // Travel Speed (Used for variabled of same name in elevator engine)
+        float SitTimeOut;
         
         
         
@@ -211,6 +212,9 @@ LoadConfig(string data){
                 }else if(name=="speedt"){
                     SpeedT = (float)value;
                     DebugMessage("SpeedT: "+value);
+                }else if(name=="sittimeout"){
+                    SitTimeOut = (float)value;
+                    DebugMessage("Sit TimeOut: "+(string)SitTimeOut);
                 }
         }else{ //  line does not contain equal sign
                 SendMessage("Configuration could not be read on line " + (string)cLine, NULL_KEY);
@@ -304,7 +308,7 @@ default{
                 if(For=="OUTCALLBUTTON"){ // Responde to Request for Config Data from OutSide Elevator Call Button
                     Response = [(string)id, "CONFIG", ElevatorKey, ComChannel, Mode];
                 }else if(For=="ELEVATOR"){
-                    Response = [(string)id, "CONFIG", ComChannel, Mode, SpeedT ] + Floors;
+                    Response = [(string)id, "CONFIG", ComChannel, Mode, SpeedT, SitTimeOut, ComChannel ] + Floors;
                 }
                 string ResponseString = llDumpList2String(Response, "||");
                 llRegionSayTo(id, ComChannel, ResponseString);
