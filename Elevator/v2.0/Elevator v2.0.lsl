@@ -14,7 +14,7 @@
     // Communication Channels
     integer MenuComChannel; // Menu Communications Channel for All User Dialog Communications
     integer ComChannel; // General Communication Channel for Inter-Device Communication
-    integer DoorChannel = 420;
+    integer DoorChannel = -420;
 
 // System Variables
 /* This Section contains variables that will be used throughout the program. */
@@ -251,7 +251,7 @@ SystemCtl(string System, string CMD, integer LinkID){
                 destPos.z = llList2Float(Floors, LinkID);
                 nextfloor = llGetPos();
                 nextfloor.z = llList2Float(Floors, (CurrentFloor - 1));
-                llOwnerSay((string)DiM+"Next Floor:"+(string)llListFindList(Floors, [nextfloor.z])+"||"+(string)nextfloor.z);
+                DebugMessage("LinkID: "+(string)LinkID+"\nDest Pos: "+(string)destPos.z+"Next Floor: "+(string)nextfloor.z);
                 llWhisper(0, "Going Down, Please take a seat or be left behind...");
                 RunMode = "MoveDown";
                 TimerMode = "StartMoving";
@@ -311,6 +311,7 @@ CheckNextFloor(){
             DebugMessage(llDumpList2String(DestFloor, "||"));
             CheckNextFloor();
         }else{
+            llSleep(8.0);
             SystemCtl("Car", "Move", NextFloor);
         }
     }else if(NumFloors==0){
@@ -475,7 +476,7 @@ default{
             );
             RunMode = "Moving";
             TimerMode = "Checking";
-            llSetTimerEvent(1.0);
+            llSetTimerEvent(0.5);
         }else if(TimerMode=="Checking"){
             vector currentPos = llGetPos();
             if(llRound(currentPos.z)==llRound(destPos.z)){ // We Have Arrived at the requested Floor
