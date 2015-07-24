@@ -34,7 +34,7 @@
 // 
 // 
 //    Table Control Registers 
-// 
+//  
 integer th_;     // Table Handle / Index Pointer 
 integer tc_;     // Columns in Active Table 
 integer tr_;     // Rows in Active Table 
@@ -266,6 +266,7 @@ float dbFn(string fn, string col)
 
     // Constants
 integer ComChannel = -63473670; // Secret Negative Channel for Server Communication
+integer UnitComChannel; // Channel Used to Communicate with Furniture inside Unit
 list KEYS = [ "5b8c8de4-e142-4905-a28f-d4d00607d3e9", "b9dbc6a4-2ac3-4313-9a7f-7bd1e11edf78", "dbfa0843-7f7f-4ced-83f6-33223ae57639" ];
 list Admins = [];
 string EMPTY = "";
@@ -326,12 +327,16 @@ Initialize(){
     llListenRemove(ComHandle);
     llListen(ComChannel, EMPTY, EMPTY, EMPTY);
     // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE
-    string CreatedDB = dbCreate(DBName, ["unitid", "price", "discount", "minrent", "maxrent", "rented", "renterkey", "expire"]);
+    string CreatedDB = dbCreate(DBName, ["unitid", "price", "discount", "minrent", "maxrent", "rented", "renterkey", "expire", "prims", "texture"]);
     if(CreatedDB==DBName && DebugMode){
         llOwnerSay("Database "+DBName+" Created...");
     }
     DebugMessage("Configuring...");
     cQueryID = llGetNotecardLine(cName, cLine);
+}
+
+SystemStart(){
+    llOwnerSay("System Online!");
 }
 
 LightToggle(integer LinkID, integer ISON, string Color){
@@ -363,6 +368,15 @@ AddAdmin(string LegacyName){
         DebugMessage("Added Admin: "+LegacyName);
     }else{
         DebugMessage("Unable to Resolve: "+LegacyName);
+    }
+}
+
+// Check Security
+integer CheckSecurity(key id){
+    if(llListFindList(Admins, [id])!=-1){
+        return TRUE;
+    }else{
+        return FALSE;
     }
 }
 
@@ -429,12 +443,17 @@ LoadConfig(string data){
                     float Discount = llList2Float(InputData, 2);
                     integer MinRent = llList2Integer(InputData, 3);
                     integer MaxRent = llList2Integer(InputData, 4);
-                    DebugMessage("\nNew Unit Details: \nUnit ID: "+UnitID+"\nPrice: "+(string)Price+" /wk\nDiscount: "+(integer)Discount+" %\nMin Rental Time: "+(string)MinRent+" Week(s)\nMax Rental Time: "+(string)MaxRent+" Week(s)");
-                    // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE
-                    DBEntries = dbInsert([UnitID, Price, Discount, MinRent, MaxRent, "FALSE", NULL_KEY, 0]);
+                    integer Prims = llList2Integer(InputData, 5);
+                    key Texture = llList2Key(InputData, 6);
+                    DebugMessage("\nNew Unit Details: \nUnit ID: "+UnitID+"\nPrice: "+(string)Price+" /wk\nDiscount: "+(integer)Discount+" %\nMin Rental Time: "+(string)MinRent+" Week(s)\nMax Rental Time: "+(string)MaxRent+" Week(s)"+"\nMax Prims: "+(string)Prims+"\nImg Texture Key: "+(string)Texture);
+                    // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE, PRIMS, Texture
+                    DBEntries = dbInsert([UnitID, Price, Discount, MinRent, MaxRent, "FALSE", NULL_KEY, 0, Prims, Texture]);
                     DebugMessage("DBEntries: "+(string)DBEntries);
                 }else if(name=="admin"){
                     AddAdmin(value);
+                }else if(name=="unitcomchannel"){
+                    UnitComChannel = (integer)value;
+                    DebugMessage("Unit Com Channel: "+(string)UnitComChannel);
                 }
                 LightToggle(CFGLIGHT, FALSE, "Orange");
         }else{ //  line does not contain equal sign
@@ -445,7 +464,7 @@ LoadConfig(string data){
 }
 
 // Register Server with Off-World Database System (Also Sync)
-RegisterServer(string cmd){
+RegisterServer(string cmd, list UnitData){
     if(cmd=="CheckReg"){
         DebugMessage("Registering Server...");
         OpFlag = cmd;
@@ -460,7 +479,18 @@ RegisterServer(string cmd){
         string URL = URLBase + CmdString;
         list SendParams = HTTPRequestParams + ["ServerType", "Rental"];
         string DumpString = GetData();
-        llOwnerSay(DumpString);
+        //llOwnerSay(DumpString);
+        string EncodedDumpString = llStringToBase64(DumpString);
+        string MessageBody = "data="+EncodedDumpString;
+        integer MessageBodyLength = llStringLength(MessageBody);
+        HTTPRequestHandle = llHTTPRequest(URL, SendParams, MessageBody); // Send Request to Server to Check and/or Register this Server
+    }else if(cmd=="Update"){
+        OpFlag = cmd;
+        string CmdString = "?"+llStringToBase64("cmd")+"="+llStringToBase64(OpFlag)+"&"+llStringToBase64("Key")+"="+llStringToBase64(SecurityKey);
+        string URL = URLBase + CmdString;
+        list SendParams = HTTPRequestParams + ["ServerType", "Rental"];
+        string DumpString = llDumpList2String(UnitData, "||");
+        //llOwnerSay(DumpString);
         string EncodedDumpString = llStringToBase64(DumpString);
         string MessageBody = "data="+EncodedDumpString;
         integer MessageBodyLength = llStringLength(MessageBody);
@@ -469,14 +499,14 @@ RegisterServer(string cmd){
 }
 
 // Get All Entires out of Database and Return them as String Formatted as such:
-//  {UnitID}||{Price}||{Discount}||{MinRent}||{MaxRent}||{Rented}||{RenterKey}||{Expire},
+//  {UnitID}||{Price}||{Discount}||{MinRent}||{MaxRent}||{Rented}||{RenterKey}||{Expire}||{Prims}||{Texture},
 string GetData(){
     dbIndex = 1;
     string ReturnString = "";
     for(dbIndex=1;dbIndex<=DBEntries;dbIndex++){
         list CurrentLine = dbGet(dbIndex);
         if(llList2String(CurrentLine, 0)==""){ return ReturnString; }
-        // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE
+        // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE, PRIMS
         string UnitID = llList2String(CurrentLine, 0);
         string Price = llList2String(CurrentLine, 1);
         string Discount = (string)llList2Integer(CurrentLine, 2);
@@ -484,12 +514,23 @@ string GetData(){
         string MaxRent = llList2String(CurrentLine, 4);
         string Rented = llList2String(CurrentLine, 5);
         string RenterKey = llList2String(CurrentLine, 6);
-        string Expire = llList2String(CurrentLine, 7) + ",";
-        list TempList = [ UnitID, Price, Discount, MinRent, MaxRent, Rented, RenterKey, Expire];
+        string Expire = llList2String(CurrentLine, 7);
+        string Prims = llList2String(CurrentLine, 8);
+        string Texture = llList2String(CurrentLine, 9) + ",";
+        list TempList = [ UnitID, Price, Discount, MinRent, MaxRent, Rented, RenterKey, Expire, Prims, Texture];
         string CompiledString = llDumpList2String(TempList, "||");
         ReturnString = ReturnString + CompiledString;
     }
     return ReturnString;
+}
+
+// Prep Unit After Rental
+PrepUnit(string UnitID, key Renter){
+    llRegionSayTo(Renter, 0, "Setting up your Unit...");
+    list SendList = [ SecurityKey, "NR", UnitID, Renter ];
+    string SendString = llStringToBase64(llDumpList2String(SendList, "||"));
+    DebugMessage(SendString);
+    llRegionSay(ComChannel, SendString);
 }
     
 // Main Program
@@ -523,7 +564,7 @@ default{
             }else{ // IF EOF (End of Config loop, and on Blank File)
                 LightToggle(CFGLIGHT, TRUE, "Orange");
                 // Check if Server is Registered with Website
-                RegisterServer("CheckReg");
+                RegisterServer("CheckReg", []);
             }
         }
     }
@@ -536,16 +577,112 @@ default{
     
     listen(integer chan, string cmd, key id, string data){
         if(DebugMode){
-            llOwnerSay("GS Listen Event Fired!\r"+data);
+            llOwnerSay("Listen Event Fired!\r"+data);
         }
         LightToggle(INLIGHT, TRUE, "Green");
-//        llSleep(LightHoldLength);
-        
+        list InputData = llParseString2List(data, ["||"], []);
+        string CMD = llList2String(InputData, 0);
+        if(CMD=="GETCONFIG"){
+            string UnitID = llList2String(InputData, 1);
+            DebugMessage("Configuration Data Requested for Unit: "+UnitID);
+            integer IDLength = llStringLength(UnitID);
+            string Wing = EMPTY;
+            string Unit = EMPTY;
+            integer DBIndex;
+            if(IDLength==2){
+                Wing = llGetSubString(UnitID, 1, 1);
+                Unit = llGetSubString(UnitID, 0, 0);
+            }else if(IDLength==3){
+                Wing = llGetSubString(UnitID, 2, 2);
+                Unit = llGetSubString(UnitID, 0, 1);
+            }
+            if(llToLower(Wing)=="a"){
+                DBIndex = (integer)Unit;
+            }else if(llToLower(Wing)=="b"){
+                DBIndex = ((integer)Unit + (DBEntries / 2));
+                //llOwnerSay((string)DBIndex);
+            }else{
+                llOwnerSay("ERROR");
+            }
+            list UnitData = dbGet(DBIndex);
+            DebugMessage("Unit Data: "+llDumpList2String(UnitData, "||"));
+            string UnitIDb = llList2String(UnitData, 0);
+            if(UnitID!=UnitIDb){
+                DebugMessage("UnitID: "+UnitID+" UnitIDb: "+UnitIDb);
+                return;
+            }
+            LightToggle(INLIGHT, FALSE, "Green");
+            LightToggle(OUTLIGHT, TRUE, "Green");
+            string Price = llList2String(UnitData, 1);
+            string Discount = (string)llList2Integer(UnitData, 2);
+            string MinRent = llList2String(UnitData, 3);
+            string MaxRent = llList2String(UnitData, 4);
+            string Rented = llList2String(UnitData, 5);
+            string RenterKey = llList2String(UnitData, 6);
+            string Expire = llList2String(UnitData, 7);
+            string Prims = llList2String(UnitData, 8);
+            string Texture = llList2String(UnitData, 9);
+            list Output = [ SecurityKey, "UNIT", UnitID, Price, Discount, MinRent, MaxRent, Rented, RenterKey, Expire, Prims, Texture];
+            string OutputString = llDumpList2String(Output, "||");
+            DebugMessage("Sending Config Data: "+OutputString);
+            llRegionSayTo(id, ComChannel, OutputString);
+            LightToggle(OUTLIGHT, FALSE, "Green"); 
+        }else if(CMD=="RENTED"){
+           list NewUnitData = llList2List(InputData, 1, -1);
+           string UnitID = llList2String(NewUnitData, 0);
+           integer IDLength = llStringLength(UnitID);
+           string Wing = EMPTY;
+           string Unit = EMPTY;
+           integer DBIndex;
+           if(IDLength==2){
+               Wing = llGetSubString(UnitID, 1, 1);
+               Unit = llGetSubString(UnitID, 0, 0);
+           }else if(IDLength==3){
+               Wing = llGetSubString(UnitID, 2, 2);
+               Unit = llGetSubString(UnitID, 0, 1); 
+           }
+           if(llToLower(Wing)=="a"){
+               DBIndex = (integer)Unit;
+           }else if(llToLower(Wing)=="b"){
+               DBIndex = ((integer)Unit + (DBEntries / 2));
+           }else{
+               llOwnerSay("ERROR");
+           }
+           
+           dbIndex = DBIndex;
+           // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE, PRIMS, Texture
+           integer NewIndex = dbPut([llList2String(NewUnitData, 0), llList2String(NewUnitData, 1), llList2String(NewUnitData, 2), llList2String(NewUnitData, 3), llList2String(NewUnitData, 4), llList2String(NewUnitData, 5), llList2String(NewUnitData, 6),  llList2String(NewUnitData, 7), llList2String(NewUnitData, 8), llList2String(NewUnitData, 9)]);
+            list UpData = dbGet(DBIndex);
+            DebugMessage("Updating Remote Server...");
+            RegisterServer("Update", UpData);
+        }
+    }
+    
+    touch_start(integer num){
+        if(num>1){
+            return;
+        }
+        if(!CheckSecurity(llDetectedKey(0))){
+            llRegionSayTo(llDetectedKey(0), 0, "You are not authorized!");
+            return;
+        }
+        DebugMode = !DebugMode;
+        if(DebugMode){
+            DebugMessage("Debug Mode Enabled!");
+            DebugMessage("Dumping Database...");
+            integer i;
+            for(i=1;i<=DBEntries;i++){
+                list UnitData = dbGet(i);
+                DebugMessage("DB Entry #: "+(string)i+"\nUnit ID: "+llList2String(UnitData, 0)+"\nPrice: "+llList2String(UnitData, 1)+" /wk\nDiscount: "+(string)llList2Integer(UnitData, 2)+" %\nMin Rent: "+llList2String(UnitData, 3)+"Week(s)\nMax Rent: "+llList2String(UnitData, 4)+"Weeks(s)\nRented: "+llList2String(UnitData, 5)+"\nRenter: "+llKey2Name(llList2Key(UnitData, 6))+"\nExpiry: "+llList2String(UnitData, 7)+"\nMax Prims: "+llList2String(UnitData, 8)+"\nTexture Key: "+llList2String(UnitData, 9));
+            }
+        }else{
+            llOwnerSay("Debug Mode Disabled!");
+        }
     }
     
     http_response(key request_id, integer status, list metadata, string body)
     {
-        if (request_id != HTTPRequestHandle) return;// exit if unknown
+        if (request_id != HTTPRequestHandle) return;// exit if unknown 
         if(OpFlag=="CheckReg"){
             vector COLOR_BLUE = <0.0, 0.0, 1.0>;
             float  OPAQUE     = 1.0;
@@ -572,12 +709,61 @@ default{
                 }
             }
             LightToggle(CFGLIGHT, FALSE, "Orange");
-            RegisterServer("Sync");
+            RegisterServer("Sync", []);
         }else if(OpFlag=="Sync"){
-            DebugMessage(body);
-            if(body=="EMPTY"){
-                DebugMessage("Server said it is Empty!");
+            list InputData = llParseString2List(body, [":"], []);
+            string ResponseCode = llList2String(InputData, 0);
+            if(ResponseCode=="UPDATE"){ // In-Ward Sync
+                list OffWorldData = llCSV2List(llList2String(InputData, 1));
+                if(dbDrop(DBName)){
+                    string CreatedDB = dbCreate(DBName, ["unitid", "price", "discount", "minrent", "maxrent", "rented", "renterkey", "expire", "prims", "texture"]);
+                    if(CreatedDB==DBName && DebugMode){
+                        llOwnerSay("Database "+DBName+" Cleared...");
+                    }
+                    integer i;
+                    for(i=0;i<DBEntries;i++){
+                        list ThisUnit = llParseString2List(llList2String(OffWorldData, i), ["||"], []);
+                        // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE
+                        string UnitID = llList2String(ThisUnit, 0);
+                        integer Price = llList2Integer(ThisUnit, 1);
+                        float Discount = llList2Float(ThisUnit, 2);
+                        integer MinRent = llList2Integer(ThisUnit, 3);
+                        integer MaxRent = llList2Integer(ThisUnit, 4);
+                        string Rented = llList2String(ThisUnit, 5);
+                        key RenterKey = llList2Key(ThisUnit, 6);
+                        integer Expiry = llList2Integer(ThisUnit, 7);
+                        integer Prims = llList2Integer(ThisUnit, 8);
+                        key Texture = llList2Key(ThisUnit, 9);
+                        integer NewEntry = dbInsert([UnitID, Price, Discount, MinRent, MaxRent, Rented, RenterKey, Expiry, Prims, Texture]);
+                        if(NewEntry!=(i+1)){
+                            DebugMessage("ERROR: New Entry #: "+(string)NewEntry+" Index #: "+(string)i);
+                            state borked;
+                        }
+                    }
+                    DebugMessage("Databases Sync'd!");
+                    SystemStart();
+                }
+            }else if(ResponseCode=="SYNCERROR"){ // Sync Error
+                string ErrorString = llList2String(InputData, 1);
+                DebugMessage("Sync Error!\nMessage:\n"+ErrorString);
+                state borked;
+            }else if(ResponseCode=="OK"){ // Sync OK (New Database Setup)
+                DebugMessage("New Database Setup!");
+                SystemStart();
+            }
+        }else if(OpFlag=="Update"){
+            list Response = llParseString2List(body, ["||"], []);
+            if(llToUpper(llList2String(Response, 0))=="OK"){
+                string UnitID = llList2String(Response, 1);
+                key Renter = llList2Key(Response, 2);
+                PrepUnit(UnitID, Renter);
             }
         }
+    }
+}
+
+state borked{
+    state_entry(){
+        llOwnerSay("Error Has Occured! Please re-run with Diagnostics Mode On for full details!");
     }
 }
