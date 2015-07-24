@@ -4,15 +4,15 @@
     Direction of Movment is changed by altering flag Side
 */
 
-integer DChannel = -420; // Com Channel for Open/Close Messages
+integer DChannel = 421; // Com Channel for Open/Close Messages
 integer DChannelHandle;
 integer Floor = 1;
 string mode; // Mode Flag (Open/Closed)
-float MoveDistance = 1.0; // Mode Distance (approx door width)
+float MoveDistance = 0.95; // Mode Distance (approx door width)
 float MoveBack; // Hold MoveDistance * -1 when needed
 float ReturnTimer = 10.0; // Time to Wait before auto closing the door.
 integer SideToggle = TRUE; // Left/Right
-string Axis = "y"; // The Axis of Movement (x,y,z)
+string Axis = "x"; // The Axis of Movement (x,y,z)
 integer DebugMode = TRUE; // Debug Mode
 vector ClosedPos = ZERO_VECTOR;
 
@@ -50,10 +50,17 @@ default
                     //vector Pos = llGetPos();
                     //Pos.y = Pos.y + MoveDistance;
                     //llSetPos(Pos);
-                    llSetKeyframedMotion(
-                        [<0.0,MoveDistance,0.0>, 3],
-                        [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
-                    );
+                    if(Axis=="y"){
+                        llSetKeyframedMotion(
+                            [<0.0,MoveDistance,0.0>, 3],
+                            [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+                        );
+                    }else if(Axis=="x"){
+                        llSetKeyframedMotion(
+                            [<MoveDistance,0.0,0.0>, 3],
+                            [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+                        );
+                    }
                     llSetTimerEvent(ReturnTimer);
                 }else if(CMD=="Close"){
                     if(mode=="closed"){
@@ -63,10 +70,17 @@ default
                         return;
                     }
                     MoveBack = MoveDistance * -1;
-                    llSetKeyframedMotion(
-                            [<0.0,MoveBack,0.0>, 3],
-                            [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
-                    );
+                    if(Axis=="x"){
+                        llSetKeyframedMotion(
+                                [<MoveBack,0.0,0.0>, 3],
+                                [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+                        );
+                    }else if(Axis=="y"){
+                        llSetKeyframedMotion(
+                                [<0.0,MoveBack,0.0>, 3],
+                                [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+                        );
+                    }
                     mode = "closed";
                     llSetTimerEvent(0);
                 }
@@ -76,10 +90,17 @@ default
     
     timer(){
         MoveBack = MoveDistance * -1;
-        llSetKeyframedMotion(
-                [<0.0,MoveBack,0.0>, 3],
-                [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
-        );
+        if(Axis=="y"){
+            llSetKeyframedMotion(
+                    [<0.0,MoveBack,0.0>, 3],
+                    [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+            );
+        }else if(Axis=="x"){
+            llSetKeyframedMotion(
+                    [<MoveBack,0.0,0.0>, 3],
+                    [KFM_DATA, KFM_TRANSLATION, KFM_MODE, KFM_FORWARD]
+            );
+        }
         mode = "closed";
         llSetTimerEvent(0);
     }
