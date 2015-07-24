@@ -1,5 +1,5 @@
 // Number Grid Texture UUID
-key texture = "31ceaec0-d406-4a21-9ba9-e66b884f0fbe";
+key texture = "fa16bd77-af56-4149-b9d4-75f6ceda8448";
 
 key creatorKey;
 
@@ -70,12 +70,12 @@ key player;
 
 string gameValueName;
 
-key GameServer = "5b8c8de4-e142-4905-a28f-d4d00607d3e9"; // UUID of Game Server  Prim in Server Cabinet
+key GameServer = "f77c9eb4-4d0a-48a3-8157-613b9f8342a7"; // UUID of Game Server  Prim in Server Cabinet
 key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4"; // Security Key for Secure Communication. Currently my UUID
-key GameEventDBServer = "373cd10f-2d38-481a-832b-1bd0fa8c850e"; // UUID of Game Event Logger Database Server
-key GameDBServer = "1de89765-6d57-4426-834d-d94f06fda4b5"; // UUID of Game Database Server in Server Cabinet
-integer ServerComChannel = -13546788; // Game Server Communication Channel
-integer EventDBServerComChannel = -260046; // Game Event Database Server Communication Channel
+key GameEventDBServer = "508e0211-5cfe-4bda-acbe-8576b02dc00e"; // UUID of Game Event Logger Database Server
+key GameDBServer = "5d9b8231-ed73-4aa5-b3c8-a7b0a88b1aa6"; // UUID of Game Database Server in Server Cabinet
+integer ServerComChannel = -63473672; // Game Server Communication Channel
+integer EventDBServerComChannel = -260002; // Game Event Database Server Communication Channel
 integer ServerComHandle;
 list RoundLengthList = [];
 integer DebugMode = FALSE;
@@ -574,7 +574,7 @@ state Ready {
                 player);
                 
             llWhisper(0, gameValueName + " game over!");
-            iPoints = 0;
+            //iPoints = 0;
             gameValueName = "";
             player = NULL_KEY;
         }
