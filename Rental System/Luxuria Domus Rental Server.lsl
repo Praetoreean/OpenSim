@@ -448,7 +448,7 @@ LoadConfig(string data){
                     DebugMessage("\nNew Unit Details: \nUnit ID: "+UnitID+"\nPrice: "+(string)Price+" /wk\nDiscount: "+(integer)Discount+" %\nMin Rental Time: "+(string)MinRent+" Week(s)\nMax Rental Time: "+(string)MaxRent+" Week(s)"+"\nMax Prims: "+(string)Prims+"\nImg Texture Key: "+(string)Texture);
                     // UNITID, PRICE, DISCOUNT, MINRENT, MAXRENT, RENTED, RENTERKEY, EXPIRE, PRIMS, Texture
                     DBEntries = dbInsert([UnitID, Price, Discount, MinRent, MaxRent, "FALSE", NULL_KEY, 0, Prims, Texture]);
-                    DebugMessage("DBEntries: "+(string)DBEntries);
+                    //DebugMessage("DBEntries: "+(string)DBEntries);
                 }else if(name=="admin"){
                     AddAdmin(value);
                 }else if(name=="unitcomchannel"){
@@ -526,7 +526,7 @@ string GetData(){
 
 // Prep Unit After Rental
 PrepUnit(string UnitID, key Renter){
-    llRegionSayTo(Renter, 0, "Setting up your Unit...");
+    //llRegionSayTo(Renter, 0, "Setting up your Unit...");
     list SendList = [ SecurityKey, "NR", UnitID, Renter ];
     string SendString = llStringToBase64(llDumpList2String(SendList, "||"));
     DebugMessage(SendString);
@@ -600,12 +600,10 @@ default{
                 DBIndex = (integer)Unit;
             }else if(llToLower(Wing)=="b"){
                 DBIndex = ((integer)Unit + (DBEntries / 2));
-                //llOwnerSay((string)DBIndex);
             }else{
                 llOwnerSay("ERROR");
             }
             list UnitData = dbGet(DBIndex);
-            DebugMessage("Unit Data: "+llDumpList2String(UnitData, "||"));
             string UnitIDb = llList2String(UnitData, 0);
             if(UnitID!=UnitIDb){
                 DebugMessage("UnitID: "+UnitID+" UnitIDb: "+UnitIDb);
@@ -627,7 +625,7 @@ default{
             DebugMessage("Sending Config Data: "+OutputString);
             llRegionSayTo(id, ComChannel, OutputString);
             LightToggle(OUTLIGHT, FALSE, "Green"); 
-        }else if(CMD=="RENTED"){
+        }else if(CMD=="RENTED" || CMD=="AVAIL"){
            list NewUnitData = llList2List(InputData, 1, -1);
            string UnitID = llList2String(NewUnitData, 0);
            integer IDLength = llStringLength(UnitID);

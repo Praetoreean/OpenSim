@@ -260,28 +260,28 @@ float dbFn(string fn, string col)
 // Configuration
 
     // Constants
-integer DBComChannel = -260046;
-integer ServerComChannel = -13546788;
+integer DBComChannel = -260002;
+integer ServerComChannel = -63473672;
 integer ServerComHandle;
-string DBName = "HeavenAndHellUserDatabase"; // Database for Heaven and Hell Player Info
-string HoverTextString = "Heaven And Hell\n User Database"; // Base String Name of Databse Engine
+string DBName = "GunsCarsAndGirlsUserDatabase"; // Database for Heaven and Hell Player Info
+string HoverTextString = "Guns Cars and Girls\n User Database"; // Base String Name of Databse Engine
 string EMPTY = "";
-key SecurityKey = "UseYourOwnKey";
+key SecurityKey = "3d7b1a28-f547-4d10-8924-7a2b771739f4";
 key GameServer = "";
 key GameEventDBServer = "";
 integer BasePotAmt = 100;
 float LightHoldLength = 0.1;
-string AskForKeys = "(Mq=h/c2)";
+string AskForKeys = "TheKeyIs(Mq=h/c2)";
 integer UploadTimer = 3720; // Frequency in Seconds of User Database Upload
 integer DBEMPTY = 1;
     // Off-World Data Communication Constants
 key HTTPRequestHandle; // Handle for HTTP Request
-string URLBase = "http://orbitsystems.ca";
+string URLBase = "http://api.orbitsystems.ca/api.php";
 list HTTPRequestParams = [
     HTTP_METHOD, "POST",
     HTTP_MIMETYPE, "application/x-www-form-urlencoded",
     HTTP_BODY_MAXLENGTH, 16384,
-    HTTP_CUSTOM_HEADER, "CUSKEY", "(Mq=h/c2)"
+    HTTP_CUSTOM_HEADER, "CUSKEY", "TheKeyIs(Mq=h/c2)"
 ];
 
         // Indicator Light Config
@@ -305,7 +305,7 @@ integer LOSES = 8;
 
     // Switches
 integer HoverText = TRUE; // Should we show hoverText
-integer DebugMode = FALSE; // Should we say De bug Messages to Owner?
+integer DebugMode = TRUE; // Should we say De bug Messages to Owner?
 
     // Variables
 integer DBComHandle; // Database Communication Handle
@@ -357,6 +357,7 @@ Initialize(){
 }
 
 FindKeys(){
+    llOwnerSay("Finding Keys...");
     llRegionSay(ServerComChannel, AskForKeys);
 }
 
@@ -572,7 +573,12 @@ default
                 }
             }else if(cmd=="CLRPOT"){
                 if(dbExists(["uuid", "==", "UPPOT"])){ // Check for and Move Pointer to Pot Index
-                    dbPut(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
+                    list InputData = llParseStringKeepNulls(data, ["||"], []);
+                    if(llList2Integer(InputData, 2)<BasePotAmt){
+                        dbPut(["UPPOT", BasePotAmt, "0", "0", "0", "0", "0"]);
+                    }else{
+                        dbPut(["UPPOT", llList2Integer(InputData, 2), "0", "0", "0", "0", "0"]);
+                    }
                     if(DebugMode){
                         llOwnerSay("Cleared pot by adjustment.");
                     }
@@ -582,6 +588,16 @@ default
                         llOwnerSay("Cleared pot by Insert");
                     }
                 }
+            }else if(cmd=="GetPot"){
+                integer dbIndexBKP = dbIndex;
+                dbIndex = DBEMPTY;
+                list JackPot = dbGet(dbIndex);
+                dbIndex = dbIndexBKP;
+                string SendString = "CurPot||"+llList2String(JackPot, 1);
+                if(DebugMode){
+                    llOwnerSay("Sending GETPOT Response: "+SendString);
+                }
+                llRegionSayTo(id, chan, SendString);
             }else if(cmd=="HRPOT"){ // If Hourly JackPot Server is Calling (Give i s List of Sorted Top Spenders and JackPot Total)
                 dbIndex = 1; // Set Database Inquiry Start Point
                 list UnSortedOutPut = []; // Prepare Output List
@@ -627,7 +643,7 @@ default
                         if(DebugMode){
                             llOwnerSay("Authorized User: "+data);
                         }
-                        names += data;
+                        names = names + data;
                     }else{
                         llOwnerSay("Security Turned Off.");
                     }

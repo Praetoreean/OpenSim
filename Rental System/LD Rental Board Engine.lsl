@@ -153,7 +153,8 @@ SystemStart(){
     SendMessage("System Started!", llGetOwner());
     CurUnitID = 0;
     //llSetTimerEvent(300.0);
-    UpdateUnitInfo("", (string)CurUnitID);
+    UpdateUnitInfo("", (string)CurUnitID, NULL_KEY);
+    llSetTimerEvent(10.0);
 }
 
 // Add Admin (Add provided Legacy Name to Admins List after extrapolating userKey)
@@ -171,7 +172,7 @@ AddAdmin(string LegacyName){
 }
 
 // Update Stats
-UpdateUnitInfo(string UnitName, string UnitIndex){
+UpdateUnitInfo(string UnitName, string UnitIndex, key WhoTouched){
     list UnitData;
     integer CurUnitIndex;
     if(UnitName!=""){
@@ -186,13 +187,15 @@ UpdateUnitInfo(string UnitName, string UnitIndex){
     UnitData = llList2List(Units, CurUnitIndex, (CurUnitIndex + 9));
     CurUnitData = UnitData;
     // Set Price to make board payable if unit is available
-    if(llList2String(UnitData, 5)=="FALSE"){
+    if(llList2String(UnitData, 5)=="FALSE" || (llList2String(UnitData, 5)=="TRUE" && llList2Key(UnitData, 6) == WhoTouched)){
+        //llOwnerSay("Path1");
         CurPayPrice = llList2Integer(UnitData, 1);
         if(CurPayPrice>0){
             llSetPayPrice(CurPayPrice, [ CurPayPrice, (CurPayPrice * 2), (CurPayPrice * 3), (CurPayPrice * 4)]);
         }
         llMessageLinked(LINK_SET, 0, "green", "");
     }else if(llList2String(UnitData, 5)=="TRUE"){
+        //llOwnerSay(llList2String(UnitData, 5));
         llSetPayPrice(PAY_HIDE, [ PAY_HIDE, PAY_HIDE, PAY_HIDE, PAY_HIDE ]);
         llMessageLinked(LINK_SET, 0, "red", "");
     }
@@ -334,7 +337,7 @@ integer CheckServerSecurity(string InKey){
 }
 
 // Next / Prev Unit Display Changer
-ChangeUnit(string Direction){
+ChangeUnit(string Direction, key WhoTouched){
     if(Direction=="Next"){
         CurUnitID++;
         if(CurUnitID>=(Floors * llGetListLength(Wings))){
@@ -349,12 +352,55 @@ ChangeUnit(string Direction){
         }
     }
     //llOwnerSay("CurUnitID: "+(string)CurUnitID);
-    UpdateUnitInfo("", (string)CurUnitID);
+    UpdateUnitInfo("", (string)CurUnitID, WhoTouched);
 }
 
 AnnounceUnitStateChange(list InputData){
     string SendString = llDumpList2String(InputData, "||");
     llRegionSay(-86000, SendString);
+}
+
+// Check for Expired Units
+CheckExpires(){
+    integer count;
+    integer Start;
+    integer End;
+    list CurrentUnit;
+    string CurrentWing = "a";
+    integer CurrentTime;
+    for(count=1;count<=Floors;count++){
+        Start = llListFindList(Units, (string)count+llToUpper(CurrentWing));
+        End = (Start + 9);
+        CurrentUnit = llList2List(Units, Start, End);
+        CurrentTime = llGetUnixTime();
+        integer UnitExpiry = llList2Integer(CurrentUnit, 7);
+        if(CurrentTime>UnitExpiry && UnitExpiry>0){
+            if(llList2String(CurrentUnit, 0)=="1A" || llList2String(CurrentUnit, 0)=="1B"){
+                // Do Nothing
+            }else{
+                 // Notify Server of Rented Unit
+                list SendList = [ "AVAIL" ] + CurrentUnit;
+                string SendString = llDumpList2String(SendList, "||");
+                DebugMessage("Updating Server...");
+                llRegionSay(ComChannel, SendString);
+                
+                // Announce Change to Front Door Panels (And Anything Else we later want to listen)
+                AnnounceUnitStateChange(SendList);
+                //llOwnerSay("Expired "+llList2String(CurrentUnit, 0));
+            }
+        }
+//        llOwnerSay(llDumpList2String(CurrentUnit, "||"));
+        if(count==Floors){
+            integer NumWings = llGetListLength(Wings);
+            integer NextWingIndex = (llListFindList(Wings, [CurrentWing]) + 1);
+            if(NextWingIndex>=NumWings){
+                count = Floors;
+            }else{
+                count = 1;
+                CurrentWing = llList2String(Wings, NextWingIndex);
+            } 
+        }
+    }
 }
 
 
@@ -372,11 +418,12 @@ default{
     
     touch_start(integer num){
         vector WhereTouched = llDetectedTouchST(0);
+        key WhoTouched = llDetectedKey(0);
         //llOwnerSay("X Vector: "+(string)WhereTouched.x+" Y Vector: "+(string)WhereTouched.y);
         if(WhereTouched.x>=0.0597 && WhereTouched.x<=0.3779 && WhereTouched.y>=0.5845 && WhereTouched.y<=0.6212){
-            ChangeUnit("Prev");
+            ChangeUnit("Prev", WhoTouched);
         }else if(WhereTouched.x>=0.6308 && WhereTouched.x<=0.9434 && WhereTouched.y>=0.5867 && WhereTouched.y<=0.6213){
-            ChangeUnit("Next");
+            ChangeUnit("Next", WhoTouched);
         }
     }
     
@@ -456,15 +503,32 @@ default{
         list ExpiryList = uUnix2StampLst(Expiry);
         integer ExpYear = llList2Integer(ExpiryList, 0) + (CurrentYear - llList2Integer(ExpiryList, 0));
         list Public = [ExpYear] + llList2List(ExpiryList, 1, 2);
-        //llOwnerSay(llDumpList2String(CurUnitData, "||"));
+        llOwnerSay("Pre New Expire: "+llDumpList2String(CurUnitData, "||"));
         list NewUnitData = llList2List(CurUnitData, 0, 4) + ["TRUE"] + [(string)Payor] + [Expiry] + llList2List(CurUnitData, 8, -1);
-        //llOwnerSay(llDumpList2String(NewUnitData, "||"));
+        llOwnerSay("New Unit Data: "+llDumpList2String(NewUnitData, "||"));
         llMessageLinked(LINK_SET, 0, "red", "");
         integer UnitIndex = llListFindList(Units, [llList2String(NewUnitData, 0)]);
         if(UnitIndex==-1){
             llOwnerSay("Error Unit Not Found in List!");
             state borked;
+        }else{
+            list OldUnitData = llList2List(Units, UnitIndex, (UnitIndex + 9));
+            llOwnerSay("Old Unit Data: "+llDumpList2String(OldUnitData, "||"));
+            if(llList2String(OldUnitData, 6)==Payor){
+                integer OldExpiry = llList2Integer(NewUnitData, 7);
+                if(AmountPaid==OneWeek){
+                    Expiry = (OldExpiry + 604800);
+                }else if(AmountPaid==TwoWeek){
+                    Expiry = (OldExpiry + (604800 * 2));
+                }else if(AmountPaid==ThreeWeek){
+                    Expiry = (OldExpiry + (604800 * 3));
+                }else if(AmountPaid==FourWeek){
+                    Expiry = (OldExpiry + (604800 * 4));
+                }
+            }
         }
+        NewUnitData = [] + llList2List(CurUnitData, 0, 4) + ["TRUE"] + [(string)Payor] + [Expiry] + llList2List(CurUnitData, 8, -1);
+        llOwnerSay("New Unit Data Final: "+llDumpList2String(NewUnitData, "||"));
         list Start;
         list End;
         if(UnitIndex==0){
@@ -484,10 +548,13 @@ default{
         
         // Announce Change to Front Door Panels (And Anything Else we later want to listen)
         AnnounceUnitStateChange(SendList);
+        // Update Display Text
+        //llOwnerSay(llList2String(NewUnitData, 0));
+        UpdateUnitInfo(llList2String(NewUnitData, 0), "", Payor);
     }
     
     timer(){
-        llResetScript();
+        CheckExpires();
     }
 }
 
